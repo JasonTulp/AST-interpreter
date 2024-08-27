@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::error_handler::ErrorHandler;
 use crate::token::{LiteralType, Token, TokenType};
 
 // The scanner will scan through the input text and produce a list of tokens
@@ -8,18 +11,18 @@ pub struct Scanner {
     start: u32,
     current: u32,
     line: u32,
-    pub(crate) had_error: bool,
+    error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Scanner {
-    pub fn new(source: Vec<u8>) -> Scanner {
+    pub fn new(source: Vec<u8>, error_handler:  Rc<RefCell<ErrorHandler>>) -> Scanner {
         Scanner {
             source,
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
-            had_error: false,
+            error_handler
         }
     }
 
@@ -114,7 +117,7 @@ impl Scanner {
             f if self.is_alpha(f) => self.identifier(),
 
             _ => {
-                self.error(self.line, "Unexpected character.")
+                self.error_handler.borrow_mut().report(self.line, "", "Unexpected character.")
             }
         }
     }
@@ -193,7 +196,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.error(self.line, "Unterminated string.");
+            self.error_handler.borrow_mut().report(self.line,"", "Unterminated string.");
         }
 
         // To advance past the closing "
@@ -261,16 +264,5 @@ impl Scanner {
     fn range_to_string(&mut self, start: u32, end: u32) -> String {
         // Safe to unwrap as we know it is utf-8
         String::from_utf8(self.source[start as usize .. end as usize].to_vec()).unwrap()
-    }
-
-    // Report an error to the user
-    pub fn error(&mut self, line: u32, message: &str) {
-        self.report(line, "", message);
-    }
-
-    // Report an error to the user with a location
-    pub fn report(&mut self, line: u32, location: &str, message: &str) {
-        self.had_error = true;
-        eprintln!("[line {}] Error {}: {}", line, location, message);
     }
 }

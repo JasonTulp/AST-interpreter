@@ -1,26 +1,22 @@
+use crate::interpreter::InterpreterError;
 use crate::token::{Token, LiteralType};
-
-// TODO move outside of here into common file
-pub enum InterpreterError {
-    Error(Token, String),
-    Return,
-}
 
 pub trait Visitor {
     type Value;
+    type Error;
     
-    fn visit_assign(&mut self, assign: &Assign) -> Result<Self::Value, InterpreterError>;
-    fn visit_binary(&mut self, binary: &Binary) -> Result<Self::Value, InterpreterError>;
-    fn visit_call(&mut self, call: &Call) -> Result<Self::Value, InterpreterError>;
-    fn visit_get(&mut self, get: &Get) -> Result<Self::Value, InterpreterError>;
-    fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, InterpreterError>;
-    fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, InterpreterError>;
-    fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, InterpreterError>;
-    fn visit_set(&mut self, set: &Set) -> Result<Self::Value, InterpreterError>;
-    fn visit_super(&mut self, super_: &Super) -> Result<Self::Value, InterpreterError>;
-    fn visit_this(&mut self, this: &This) -> Result<Self::Value, InterpreterError>;
-    fn visit_unary(&mut self, unary: &Unary) -> Result<Self::Value, InterpreterError>;
-    fn visit_variable(&mut self, variable: &Variable) -> Result<Self::Value, InterpreterError>;
+    fn visit_assign(&mut self, assign: &Assign) -> Result<Self::Value, Self::Error>;
+    fn visit_binary(&mut self, binary: &Binary) -> Result<Self::Value, Self::Error>;
+    fn visit_call(&mut self, call: &Call) -> Result<Self::Value, Self::Error>;
+    fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Self::Error>;
+    fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Self::Error>;
+    fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, Self::Error>;
+    fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, Self::Error>;
+    fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Self::Error>;
+    fn visit_super(&mut self, super_: &Super) -> Result<Self::Value, Self::Error>;
+    fn visit_this(&mut self, this: &This) -> Result<Self::Value, Self::Error>;
+    fn visit_unary(&mut self, unary: &Unary) -> Result<Self::Value, Self::Error>;
+    fn visit_variable(&mut self, variable: &Variable) -> Result<Self::Value, Self::Error>;
 }
 
 #[derive(Debug)]
@@ -40,7 +36,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn accept<V: Visitor>(&self, visitor: &mut V) -> Result<V::Value, InterpreterError> {
+    pub fn accept<V: Visitor>(&self, visitor: &mut V) -> Result<V::Value, Self::Error> {
         match self {
             Expr::Assign(assign) => visitor.visit_assign(assign),
             Expr::Binary(binary) => visitor.visit_binary(binary),

@@ -3,12 +3,17 @@ mod token;
 mod expressions;
 mod statements;
 mod parser;
+mod interpreter;
+mod error_handler;
 
 use std::{io, process};
+use std::cell::RefCell;
 use std::io::prelude::*;
 use std::fs::File;
+use std::rc::Rc;
 use scanner::Scanner;
 use parser::Parser;
+use crate::error_handler::ErrorHandler;
 
 // Start the REPL and handle incoming prompts
 pub fn run_prompt() {
@@ -34,15 +39,15 @@ pub fn run_file(path: &str) -> io::Result<()> {
 
 // Actually run the interpreter
 fn run(source: Vec<u8>) {
-    // TODO Create error handler struct which prints all types of errors and keeps track of errors
-    let mut scanner = Scanner::new(source);
+    let mut error_handler = Rc::new(RefCell::new(ErrorHandler::new()));
+    let mut scanner = Scanner::new(source, Rc::clone(&error_handler));
     scanner.scan_tokens();
     scanner.print_tokens();
-    if scanner.had_error {
+    if error_handler.borrow().had_error {
         process::exit(65);
     }
 
-    let mut parser = Parser::new(scanner.tokens);
+    let mut parser = Parser::new(scanner.tokens, Rc::clone(&error_handler));
     let expr = parser.parse();
     if parser.had_error {
         process::exit(65);

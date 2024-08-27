@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::error_handler::ErrorHandler;
 use crate::token::{Token, TokenType, LiteralType};
 use crate::expressions::*;
 
@@ -11,15 +14,15 @@ pub enum ParseError {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    pub had_error: bool,
+    error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser {
+    pub fn new(tokens: Vec<Token>, error_handler: Rc<RefCell<ErrorHandler>>) -> Self {
+        Self {
             tokens,
             current: 0,
-            had_error: false,
+            error_handler,
         }
     }
 
@@ -117,7 +120,7 @@ impl Parser {
             return Ok(Expr::Grouping(Box::new(Grouping { expression: expr })));
         }
         let token = self.peek();
-        self.error(&token, "Expect expression.");
+        self.error_handler.borrow_mut().error(&token, "Expect expression.");
         Err(ParseError::SyntaxError("Expect expression.".to_string()))
     }
 
@@ -179,7 +182,7 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        self.error(&self.peek(), message);
+        self.error_handler.borrow_mut().error(&self.peek(), message);
         return Err(ParseError::SyntaxError(message.to_string()));
     }
 
@@ -196,19 +199,6 @@ impl Parser {
     // Get the most recently consumed token
     fn previous(&self) -> Token {
         self.tokens[self.current - 1].clone()
-    }
-
-    fn error(&mut self, token: &Token, message: &str) {
-        if token.token_type == TokenType::Eof {
-            self.report(token.line, " at end", message);
-        } else {
-            self.report(token.line, &format!(" at '{}'", token.lexeme), message);
-        }
-    }
-
-    fn report(&mut self, line: u32, location: &str, message: &str) {
-        eprintln!("[line {}] Error{}: {}", line, location, message);
-        self.had_error = true;
     }
 }
 
