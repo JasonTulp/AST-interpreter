@@ -41,7 +41,7 @@ impl Token {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug,PartialEq)]
 pub enum TokenType {
     // Single Character Tokens
     LeftParen, RightParen, LeftBrace, RightBrace,

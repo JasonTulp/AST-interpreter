@@ -4,7 +4,7 @@ use crate::token::{LiteralType, Token, TokenType};
 pub struct Scanner {
     // Source string stored as bytes to save converting at every step
     source: Vec<u8>,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     start: u32,
     current: u32,
     line: u32,
