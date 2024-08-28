@@ -57,6 +57,7 @@ fn run(source: Vec<u8>, environment: Rc<RefCell<Environment>>) {
     // Parse the token stream
     let mut parser = Parser::new(scanner.tokens, Rc::clone(&error_handler));
     let statements = parser.parse();
+    // print!("{:?}", statements);
 
     // Execute the parsed statements
     let mut interpreter =

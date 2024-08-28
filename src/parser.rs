@@ -38,6 +38,9 @@ impl Parser {
         statements
     }
 
+    /// STATEMENTS
+
+    /// Parse a declaration
     fn declaration(&mut self) -> Result<Stmt, Error> {
         if self.match_token(&[TokenType::Var]) {
             return self.variable_declaration();
@@ -47,9 +50,19 @@ impl Parser {
 
     /// Parse a statement
     fn statement(&mut self) -> Result<Stmt, Error> {
+        if self.match_token(&[TokenType::For]) {
+            return self.for_statement();
+        }
+        if self.match_token(&[TokenType::If]) {
+            return self.if_statement();
+        }
         if self.match_token(&[TokenType::Print]) {
             return self.print_statement();
         }
+        if self.match_token(&[TokenType::While]) {
+            return self.while_statement();
+        }
+
         if self.match_token(&[TokenType::LeftBrace]) {
             return Ok(Stmt::Block(Box::new(Block {
                 statements: self.block()?,
@@ -71,6 +84,84 @@ impl Parser {
         Ok(Stmt::Variable(statements::Variable { name, initializer }))
     }
 
+    /// Parse an if statement
+    fn if_statement(&mut self) -> Result<Stmt, Error> {
+        self.consume(TokenType::LeftParen, "Expected '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')' after if condition.")?;
+        let then_branch = self.statement()?;
+        let else_branch = if self.match_token(&[TokenType::Else]) {
+            Some(self.statement()?)
+        } else {
+            None
+        };
+        Ok(Stmt::If(Box::new(If {
+            condition,
+            then_branch,
+            else_branch,
+        })))
+    }
+
+    /// Parse a for statement. We essentially craft a while loop with a declaration and an iterator
+    /// This is called "desugaring"
+    fn for_statement(&mut self) -> Result<Stmt, Error> {
+        self.consume(TokenType::LeftParen, "Expected '(' after 'for'.")?;
+
+        // Check for initializer, if it has been omitted, we will set it to None
+        let initializer: Option<Stmt> = if self.match_token(&[TokenType::Semicolon]) {
+            None
+        } else if self.match_token(&[TokenType::Var]) {
+            Some(self.variable_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        // Check for condition, if it has been omitted, we will set it to None
+        let condition = if !self.check(&TokenType::Semicolon) {
+            self.expression()?
+        } else {
+            Expr::Literal(Literal {
+                value: LiteralType::Bool(true),
+            })
+        };
+        self.consume(TokenType::Semicolon, "Expected ';' after loop condition.")?;
+
+        // Check for increment, if it has been omitted, we will set it to None
+        let increment = if !self.check(&TokenType::RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenType::RightParen, "Expected ')' after for clauses.")?;
+
+        // Parse the body of the for loop
+        let mut body = self.statement()?;
+
+        // If there is an increment, we will add it to the end of the body
+        if let Some(increment) = increment {
+            body = Stmt::Block(Box::new(Block {
+                statements: vec![
+                    body,
+                    Stmt::Expression(Expression {
+                        expression: increment,
+                    }),
+                ],
+            }));
+        }
+
+        // Add in the while condition
+        body = Stmt::While(Box::new(While { condition, body }));
+
+        // If there is an initializer, we will add it to the beginning of the body
+        if let Some(initializer) = initializer {
+            body = Stmt::Block(Box::new(Block {
+                statements: vec![initializer, body],
+            }));
+        }
+
+        Ok(body)
+    }
+
     /// Parse a print statement
     fn print_statement(&mut self) -> Result<Stmt, Error> {
         let expression = self.expression()?;
@@ -78,9 +169,18 @@ impl Parser {
         Ok(Stmt::Print(Print { expression }))
     }
 
-    // Return a list of statements between curly braces.
-    // Note, this returns a Vec<Stmt> instead of a Block as we will reuse this code for
-    // function bodies
+    /// Parse a while statement
+    fn while_statement(&mut self) -> Result<Stmt, Error> {
+        self.consume(TokenType::LeftParen, "Expected '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expected ')' after while condition.")?;
+        let body = self.statement()?;
+        Ok(Stmt::While(Box::new(While { condition, body })))
+    }
+
+    /// Return a list of statements between curly braces.
+    /// Note, this returns a Vec<Stmt> instead of a Block as we will reuse this code for
+    /// function bodies
     fn block(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut statements = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
@@ -115,17 +215,19 @@ impl Parser {
         ))
     }
 
+    /// EXPRESSIONS
+
     /// Parse an expression
     fn expression(&mut self) -> Result<Expr, Error> {
         self.assignment()
     }
 
     fn assignment(&mut self) -> Result<Expr, Error> {
-        let expr = self.equality()?;
+        let expr = self.plus_equal()?;
 
         if self.match_token(&[TokenType::Equal]) {
             let equals = self.previous();
-            let value = self.assignment()?;
+            let value = self.plus_equal()?;
             if let Expr::Variable(variable) = expr {
                 return Ok(Expr::Assign(Box::new(Assign {
                     name: variable.name,
@@ -137,6 +239,228 @@ impl Parser {
                 "Invalid assignment target.".to_string(),
             ));
         }
+        Ok(expr)
+    }
+
+    fn plus_equal(&mut self) -> Result<Expr, Error> {
+        let expr = self.minus_equal()?;
+
+        if self.match_token(&[TokenType::PlusEqual]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let plus = Token {
+                    token_type: TokenType::Plus,
+                    lexeme: "+".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = self.expression()?;
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: plus,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn minus_equal(&mut self) -> Result<Expr, Error> {
+        let expr = self.star_equal()?;
+
+        if self.match_token(&[TokenType::MinusEqual]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let minus = Token {
+                    token_type: TokenType::Minus,
+                    lexeme: "-".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = self.expression()?;
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: minus,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn star_equal(&mut self) -> Result<Expr, Error> {
+        let expr = self.slash_equal()?;
+
+        if self.match_token(&[TokenType::StarEqual]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let star = Token {
+                    token_type: TokenType::Star,
+                    lexeme: "*".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = self.expression()?;
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: star,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn slash_equal(&mut self) -> Result<Expr, Error> {
+        let expr = self.plus_plus()?;
+
+        if self.match_token(&[TokenType::SlashEqual]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let slash = Token {
+                    token_type: TokenType::Slash,
+                    lexeme: "/".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = self.expression()?;
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: slash,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn plus_plus(&mut self) -> Result<Expr, Error> {
+        let expr = self.minus_minus()?;
+
+        if self.match_token(&[TokenType::PlusPlus]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let plus = Token {
+                    token_type: TokenType::Plus,
+                    lexeme: "+".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = Expr::Literal(Literal {
+                    value: LiteralType::Number(1.0),
+                });
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: plus,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn minus_minus(&mut self) -> Result<Expr, Error> {
+        let expr = self.or()?;
+
+        if self.match_token(&[TokenType::MinusMinus]) {
+            let plus_equals = self.previous();
+            if let Expr::Variable(variable) = expr {
+                let minus = Token {
+                    token_type: TokenType::Minus,
+                    lexeme: "-".to_string(),
+                    literal: LiteralType::Null,
+                    line: self.peek().line,
+                };
+                let right = Expr::Literal(Literal {
+                    value: LiteralType::Number(1.0),
+                });
+                let value = Expr::Binary(Box::new(Binary {
+                    left: Expr::Variable(variable.clone()),
+                    operator: minus,
+                    right,
+                }));
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name.clone(),
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                plus_equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.and()?;
+
+        while self.match_token(&[TokenType::Or]) {
+            let operator = self.previous();
+            let right = self.and()?;
+            expr = Expr::Logical(Box::new(Logical {
+                left: expr,
+                operator,
+                right,
+            }));
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(&[TokenType::And]) {
+            let operator = self.previous();
+            let right = self.equality()?;
+            expr = Expr::Logical(Box::new(Logical {
+                left: expr,
+                operator,
+                right,
+            }));
+        }
+
         Ok(expr)
     }
 
@@ -198,9 +522,25 @@ impl Parser {
 
     /// Multiplication and division
     fn factor(&mut self) -> Result<Expr, Error> {
-        let mut expr = self.unary()?;
+        let mut expr = self.modulo()?;
 
         while self.match_token(&[TokenType::Slash, TokenType::Star]) {
+            let operator = self.previous();
+            let right = self.unary()?;
+            expr = Expr::Binary(Box::new(Binary {
+                left: expr,
+                operator,
+                right,
+            }));
+        }
+
+        Ok(expr)
+    }
+
+    fn modulo(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.unary()?;
+
+        while self.match_token(&[TokenType::Modulo]) {
             let operator = self.previous();
             let right = self.unary()?;
             expr = Expr::Binary(Box::new(Binary {

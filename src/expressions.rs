@@ -132,7 +132,7 @@ pub struct Unary {
 }
 
 // Variable expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub name: Token,
 }

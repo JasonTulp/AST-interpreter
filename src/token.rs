@@ -96,11 +96,8 @@ pub enum TokenType {
     RightBrace,
     Comma,
     Dot,
-    Minus,
-    Plus,
     Semicolon,
-    Slash,
-    Star,
+    Modulo,
 
     // One or Two Character Tokens
     Bang,
@@ -111,6 +108,16 @@ pub enum TokenType {
     GreaterEqual,
     Less,
     LessEqual,
+    Plus,
+    PlusPlus,
+    Minus,
+    MinusMinus,
+    PlusEqual,
+    MinusEqual,
+    Slash,
+    SlashEqual,
+    Star,
+    StarEqual,
 
     // Literals
     Identifier,

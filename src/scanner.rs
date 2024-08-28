@@ -67,10 +67,8 @@ impl Scanner {
             b'}' => self.add_token(TokenType::RightBrace, None),
             b',' => self.add_token(TokenType::Comma, None),
             b'.' => self.add_token(TokenType::Dot, None),
-            b'-' => self.add_token(TokenType::Minus, None),
-            b'+' => self.add_token(TokenType::Plus, None),
             b';' => self.add_token(TokenType::Semicolon, None),
-            b'*' => self.add_token(TokenType::Star, None),
+            b'%' => self.add_token(TokenType::Modulo, None),
 
             // One or Two Character Tokens
             b'!' => {
@@ -107,8 +105,35 @@ impl Scanner {
                     while self.peek() != b'\n' && !self.is_at_end() {
                         self.advance();
                     }
+                } else if self.match_char(b'=') {
+                    self.add_token(TokenType::SlashEqual, None)
                 } else {
                     self.add_token(TokenType::Slash, None)
+                }
+            }
+            b'-' => {
+                if self.match_char(b'-') {
+                    self.add_token(TokenType::MinusMinus, None)
+                } else if self.match_char(b'=') {
+                    self.add_token(TokenType::MinusEqual, None)
+                } else {
+                    self.add_token(TokenType::Minus, None)
+                }
+            }
+            b'+' => {
+                if self.match_char(b'+') {
+                    self.add_token(TokenType::PlusPlus, None)
+                } else if self.match_char(b'=') {
+                    self.add_token(TokenType::PlusEqual, None)
+                } else {
+                    self.add_token(TokenType::Plus, None)
+                }
+            }
+            b'*' => {
+                if self.match_char(b'=') {
+                    self.add_token(TokenType::StarEqual, None)
+                } else {
+                    self.add_token(TokenType::Star, None)
                 }
             }
 

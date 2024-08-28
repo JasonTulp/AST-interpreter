@@ -81,7 +81,12 @@ impl crate::statements::Visitor for Interpreter {
     }
 
     fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error> {
-        todo!()
+        if self.evaluate(&if_stmt.condition)?.is_truthy() {
+            self.execute(&if_stmt.then_branch)?
+        } else if let Some(else_branch) = &if_stmt.else_branch {
+            self.execute(else_branch)?
+        }
+        Ok(())
     }
 
     fn visit_print(&mut self, print: &Print) -> Result<(), Error> {
@@ -107,7 +112,10 @@ impl crate::statements::Visitor for Interpreter {
     }
 
     fn visit_while(&mut self, while_stmt: &While) -> Result<(), Error> {
-        todo!()
+        while self.evaluate(&while_stmt.condition)?.is_truthy() {
+            self.execute(&while_stmt.body)?;
+        }
+        Ok(())
     }
 }
 
@@ -184,6 +192,11 @@ impl crate::expressions::Visitor for Interpreter {
                     return Err(Error::RuntimeError(line, "Invalid Operands.".to_string()));
                 }
             },
+            TokenType::Modulo => {
+                let left_num: f64 = left.try_into().map_err(|e| Error::RuntimeError(line, e))?;
+                let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;
+                Ok(LiteralType::Number(left_num % right_num))
+            }
             _ => {
                 return Err(Error::RuntimeError(
                     line,
@@ -210,7 +223,19 @@ impl crate::expressions::Visitor for Interpreter {
     }
 
     fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, Error> {
-        todo!()
+        let left = self.evaluate(&logical.left)?;
+
+        if logical.operator.token_type == TokenType::Or {
+            if left.is_truthy() {
+                return Ok(left);
+            }
+        } else {
+            if !left.is_truthy() {
+                return Ok(left);
+            }
+        }
+
+        self.evaluate(&logical.right)
     }
 
     fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {
