@@ -1,15 +1,9 @@
+use crate::error;
+use crate::error_handler::{Error, ErrorHandler};
+use crate::expressions::*;
+use crate::token::{LiteralType, Token, TokenType};
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::error_handler::ErrorHandler;
-use crate::token::{Token, TokenType, LiteralType};
-use crate::expressions::*;
-
-#[derive(Debug)]
-pub enum ParseError {
-    SyntaxError(String),
-    ParseError,
-}
-
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -27,68 +21,95 @@ impl Parser {
     }
 
     // Method called to parse the tokens
-    pub fn parse(&mut self) -> Expr {
-        self.expression().expect("Error parsing expression")
+    pub fn parse(&mut self) -> Option<Expr> {
+        match self.expression() {
+            Ok(expr) => Some(expr),
+            Err(e) => {
+                self.error_handler.borrow_mut().report_error(e);
+                None
+            }
+        }
     }
 
-    fn expression(&mut self) -> Result<Expr, ParseError> {
+    fn expression(&mut self) -> Result<Expr, Error> {
         self.equality()
     }
 
     // Not equal and equal
-    fn equality(&mut self) -> Result<Expr, ParseError> {
+    fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
 
         while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = self.previous();
             let right = self.comparison()?;
-            expr = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
+            expr = Expr::Binary(Box::new(Binary {
+                left: expr,
+                operator,
+                right,
+            }));
         }
 
         Ok(expr)
     }
 
     // Greater than, greater than or equal, less than, less than or equal
-    fn comparison(&mut self) -> Result<Expr, ParseError> {
+    fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr = self.term()?;
 
-        while self.match_token(&[TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual]) {
+        while self.match_token(&[
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
             let operator = self.previous();
             let right = self.term()?;
-            expr = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
+            expr = Expr::Binary(Box::new(Binary {
+                left: expr,
+                operator,
+                right,
+            }));
         }
 
         Ok(expr)
     }
 
     // Addition and subtraction
-    fn term(&mut self) -> Result<Expr, ParseError> {
+    fn term(&mut self) -> Result<Expr, Error> {
         let mut expr = self.factor()?;
 
         while self.match_token(&[TokenType::Minus, TokenType::Plus]) {
             let operator = self.previous();
             let right = self.factor()?;
-            expr = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
+            expr = Expr::Binary(Box::new(Binary {
+                left: expr,
+                operator,
+                right,
+            }));
         }
 
         Ok(expr)
     }
 
     // Multiplication and division
-    fn factor(&mut self) -> Result<Expr, ParseError> {
+    fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr = self.unary()?;
 
         while self.match_token(&[TokenType::Slash, TokenType::Star]) {
             let operator = self.previous();
             let right = self.unary()?;
-            expr = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
+            expr = Expr::Binary(Box::new(Binary {
+                left: expr,
+                operator,
+                right,
+            }));
         }
 
         Ok(expr)
     }
 
     // Unary negation
-    fn unary(&mut self) -> Result<Expr, ParseError> {
+    fn unary(&mut self) -> Result<Expr, Error> {
         if self.match_token(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -99,19 +120,27 @@ impl Parser {
     }
 
     // Primary expression
-    fn primary(&mut self) -> Result<Expr, ParseError> {
+    fn primary(&mut self) -> Result<Expr, Error> {
         if self.match_token(&[TokenType::False]) {
-            return Ok(Expr::Literal(Literal { value: LiteralType::Bool(false) }));
+            return Ok(Expr::Literal(Literal {
+                value: LiteralType::Bool(false),
+            }));
         }
         if self.match_token(&[TokenType::True]) {
-            return Ok(Expr::Literal(Literal { value: LiteralType::Bool(true) }));
+            return Ok(Expr::Literal(Literal {
+                value: LiteralType::Bool(true),
+            }));
         }
         if self.match_token(&[TokenType::Null]) {
-            return Ok(Expr::Literal(Literal { value: LiteralType::Empty }));
+            return Ok(Expr::Literal(Literal {
+                value: LiteralType::Empty,
+            }));
         }
 
         if self.match_token(&[TokenType::Number, TokenType::String]) {
-            return Ok(Expr::Literal(Literal { value: self.previous().literal }));
+            return Ok(Expr::Literal(Literal {
+                value: self.previous().literal,
+            }));
         }
 
         if self.match_token(&[TokenType::LeftParen]) {
@@ -120,8 +149,7 @@ impl Parser {
             return Ok(Expr::Grouping(Box::new(Grouping { expression: expr })));
         }
         let token = self.peek();
-        self.error_handler.borrow_mut().error(&token, "Expect expression.");
-        Err(ParseError::SyntaxError("Expect expression.".to_string()))
+        Err(Error::SyntaxError(token, "Expect expression.".to_string()))
     }
 
     // Since we have thrown an error, we need to synchronize the parser to the next
@@ -130,20 +158,22 @@ impl Parser {
         self.advance();
         while !self.is_at_end() {
             if self.previous().token_type == TokenType::Semicolon {
-                return
+                return;
             }
 
             // Advance until we meet a statement boundary
             match self.peek().token_type {
-                TokenType::Class |
-                TokenType::Funk |
-                TokenType::Var |
-                TokenType::For |
-                TokenType::If |
-                TokenType::While |
-                TokenType::Print |
-                TokenType::Return => return,
-                _ => { let _ = self.advance(); }
+                TokenType::Class
+                | TokenType::Funk
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+                _ => {
+                    let _ = self.advance();
+                }
             };
         }
     }
@@ -153,7 +183,7 @@ impl Parser {
         for token in tokens {
             if self.check(token) {
                 self.advance();
-                return true
+                return true;
             }
         }
         false
@@ -163,9 +193,9 @@ impl Parser {
     // only looks at it
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
-            return false
+            return false;
         }
-        return &self.peek().token_type == token_type
+        return &self.peek().token_type == token_type;
     }
 
     // Advance the current token and return the previous token
@@ -177,13 +207,12 @@ impl Parser {
     }
 
     // Consume a token if it is the expected token, if not we throw an error
-    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<Token, ParseError>{
+    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<Token, Error> {
         if self.check(&token_type) {
             return Ok(self.advance());
         }
 
-        self.error_handler.borrow_mut().error(&self.peek(), message);
-        return Err(ParseError::SyntaxError(message.to_string()));
+        return Err(Error::SyntaxError(self.peek(), message.to_string()));
     }
 
     // Are we at the end of the list of tokens

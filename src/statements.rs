@@ -1,18 +1,17 @@
-use crate::token::Token;
+use crate::error_handler::Error;
 use crate::expressions::Expr;
-use crate::expressions::InterpreterError;
-
+use crate::token::Token;
 
 pub trait Visitor {
-    fn visit_block(&mut self, block: &Block) -> Result<(), InterpreterError>;
-    // fn visit_class(&mut self, class: &Class) -> Result<(), InterpreterError>;
-    fn visit_expression(&mut self, expression: &ExpressionStatement) -> Result<(), InterpreterError>;
-    fn visit_function(&mut self, function: &Function) -> Result<(), InterpreterError>;
-    fn visit_if(&mut self, if_stmt: &If) -> Result<(), InterpreterError>;
-    fn visit_print(&mut self, print: &Print) -> Result<(), InterpreterError>;
-    fn visit_return(&mut self, return_stmt: &Return) -> Result<(), InterpreterError>;
-    fn visit_variable(&mut self, variable: &Variable) -> Result<(), InterpreterError>;
-    fn visit_while(&mut self, while_stmt: &While) -> Result<(), InterpreterError>;
+    fn visit_block(&mut self, block: &Block) -> Result<(), Error>;
+    // fn visit_class(&mut self, class: &Class) -> Result<(), Error>;
+    fn visit_expression(&mut self, expression: &ExpressionStatement) -> Result<(), Error>;
+    fn visit_function(&mut self, function: &Function) -> Result<(), Error>;
+    fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error>;
+    fn visit_print(&mut self, print: &Print) -> Result<(), Error>;
+    fn visit_return(&mut self, return_stmt: &Return) -> Result<(), Error>;
+    fn visit_variable(&mut self, variable: &Variable) -> Result<(), Error>;
+    fn visit_while(&mut self, while_stmt: &While) -> Result<(), Error>;
 }
 
 pub enum Stmt {
@@ -28,7 +27,7 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    pub fn accept<V: Visitor>(&self, visitor: &mut V) -> Result<(), InterpreterError> {
+    pub fn accept<V: Visitor>(&self, visitor: &mut V) -> Result<(), Error> {
         match self {
             Stmt::Block(block) => visitor.visit_block(block),
             // Stmt::Class(class) => visitor.visit_class(class),

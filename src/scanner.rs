@@ -1,7 +1,7 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use crate::error_handler::ErrorHandler;
 use crate::token::{LiteralType, Token, TokenType};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 // The scanner will scan through the input text and produce a list of tokens
 pub struct Scanner {
@@ -15,30 +15,38 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn new(source: Vec<u8>, error_handler:  Rc<RefCell<ErrorHandler>>) -> Scanner {
+    pub fn new(source: Vec<u8>, error_handler: Rc<RefCell<ErrorHandler>>) -> Scanner {
         Scanner {
             source,
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
-            error_handler
+            error_handler,
         }
     }
 
     // Scan all tokens in the source
     pub fn scan_tokens(&mut self) {
-        while !self.is_at_end() {
+        while !self.is_at_end() && self.error_handler.borrow().had_error == false {
             self.start = self.current;
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::Eof, String::default(), LiteralType::Empty, self.line))
+        self.tokens.push(Token::new(
+            TokenType::Eof,
+            String::default(),
+            LiteralType::Empty,
+            self.line,
+        ))
     }
 
     // Debug function to print the stored tokens
     pub fn print_tokens(&self) {
-        self.tokens.clone().into_iter().for_each(|t| println!("-- {}", t.to_string()))
+        self.tokens
+            .clone()
+            .into_iter()
+            .for_each(|t| println!("-- {}", t.to_string()))
     }
 
     // Check if we are at the end of the source
@@ -70,28 +78,28 @@ impl Scanner {
                 } else {
                     self.add_token(TokenType::Bang, None)
                 }
-            },
+            }
             b'=' => {
                 if self.match_char(b'=') {
                     self.add_token(TokenType::EqualEqual, None)
                 } else {
                     self.add_token(TokenType::Equal, None)
                 }
-            },
+            }
             b'<' => {
                 if self.match_char(b'=') {
                     self.add_token(TokenType::LessEqual, None)
                 } else {
                     self.add_token(TokenType::Less, None)
                 }
-            },
+            }
             b'>' => {
                 if self.match_char(b'=') {
                     self.add_token(TokenType::GreaterEqual, None)
                 } else {
                     self.add_token(TokenType::Greater, None)
                 }
-            },
+            }
             b'/' => {
                 if self.match_char(b'/') {
                     // A comment goes until the end of the line
@@ -101,7 +109,7 @@ impl Scanner {
                 } else {
                     self.add_token(TokenType::Slash, None)
                 }
-            },
+            }
 
             // Ignore whitespace
             b' ' => (),
@@ -116,9 +124,10 @@ impl Scanner {
             f if self.is_digit(f) => self.number(),
             f if self.is_alpha(f) => self.identifier(),
 
-            _ => {
-                self.error_handler.borrow_mut().report(self.line, "", "Unexpected character.")
-            }
+            _ => self
+                .error_handler
+                .borrow_mut()
+                .report(self.line, "", "Unexpected character."),
         }
     }
 
@@ -142,7 +151,7 @@ impl Scanner {
         if self.current + 1 >= self.source.len() as u32 {
             return b'\0';
         }
-        return self.source[(self.current + 1) as usize]
+        return self.source[(self.current + 1) as usize];
     }
 
     // Add a token to the list of tokens
@@ -150,9 +159,10 @@ impl Scanner {
         let text: String = self.range_to_string(self.start, self.current);
         let literal = match literal {
             Some(l) => l,
-            None => LiteralType::Empty
+            None => LiteralType::Empty,
         };
-        self.tokens.push(Token::new(token_type, text, literal, self.line));
+        self.tokens
+            .push(Token::new(token_type, text, literal, self.line));
     }
 
     // Is the character a digit?
@@ -190,13 +200,15 @@ impl Scanner {
         // Run until eof or closing character
         while self.peek() != b'"' && !self.is_at_end() {
             if self.peek() == b'\n' {
-                self.line +=1;
+                self.line += 1;
             }
             self.advance();
         }
 
         if self.is_at_end() {
-            self.error_handler.borrow_mut().report(self.line,"", "Unterminated string.");
+            self.error_handler
+                .borrow_mut()
+                .report(self.line, "", "Unterminated string.");
         }
 
         // To advance past the closing "
@@ -256,13 +268,13 @@ impl Scanner {
             "this" => TokenType::This,
             "var" => TokenType::Var,
             "while" => TokenType::While,
-            _ => TokenType::Identifier
+            _ => TokenType::Identifier,
         }
     }
 
     // Convert a start and end range into a string from the source byte array
     fn range_to_string(&mut self, start: u32, end: u32) -> String {
         // Safe to unwrap as we know it is utf-8
-        String::from_utf8(self.source[start as usize .. end as usize].to_vec()).unwrap()
+        String::from_utf8(self.source[start as usize..end as usize].to_vec()).unwrap()
     }
 }

@@ -1,19 +1,19 @@
-mod scanner;
-mod token;
-mod expressions;
-mod statements;
-mod parser;
-mod interpreter;
 mod error_handler;
+mod expressions;
+mod interpreter;
+mod parser;
+mod scanner;
+mod statements;
+mod token;
 
-use std::{io, process};
-use std::cell::RefCell;
-use std::io::prelude::*;
-use std::fs::File;
-use std::rc::Rc;
-use scanner::Scanner;
-use parser::Parser;
 use crate::error_handler::ErrorHandler;
+use parser::Parser;
+use scanner::Scanner;
+use std::cell::RefCell;
+use std::fs::File;
+use std::io::prelude::*;
+use std::rc::Rc;
+use std::{io, process};
 
 // Start the REPL and handle incoming prompts
 pub fn run_prompt() {
@@ -36,21 +36,27 @@ pub fn run_file(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-
 // Actually run the interpreter
 fn run(source: Vec<u8>) {
     let mut error_handler = Rc::new(RefCell::new(ErrorHandler::new()));
     let mut scanner = Scanner::new(source, Rc::clone(&error_handler));
     scanner.scan_tokens();
-    scanner.print_tokens();
+    // scanner.print_tokens();
     if error_handler.borrow().had_error {
-        process::exit(65);
+        return;
     }
 
     let mut parser = Parser::new(scanner.tokens, Rc::clone(&error_handler));
     let expr = parser.parse();
-    if parser.had_error {
-        process::exit(65);
+    if let Some(expression) = expr {
+        let mut interpreter = interpreter::Interpreter::new(Rc::clone(&error_handler));
+        interpreter.interpret(&expression);
     }
-    println!("{:?}", expr);
+    // if error_handler.borrow().had_error {
+    //     process::exit(65);
+    // }
+
+    // if error_handler.borrow().had_runtime_error {
+    //     process::exit(70);
+    // }
 }
