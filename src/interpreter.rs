@@ -1,36 +1,94 @@
+use crate::environment::Environment;
+use crate::error;
 use crate::error_handler::{Error, ErrorHandler};
 use crate::expressions::*;
-use crate::report_err;
+use crate::statements::*;
 use crate::token::{LiteralType, Token, TokenType};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Interpreter {
+    // Environment stores and retrieves variables
+    environment: Rc<RefCell<Environment>>,
     error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Interpreter {
-    pub fn new(error_handler: Rc<RefCell<ErrorHandler>>) -> Self {
-        Self { error_handler }
+    pub fn new(
+        error_handler: Rc<RefCell<ErrorHandler>>,
+        environment: Rc<RefCell<Environment>>,
+    ) -> Self {
+        Self {
+            environment,
+            error_handler,
+        }
     }
 
-    pub fn interpret(&mut self, expr: &Expr) {
-        match self.evaluate(expr) {
-            Ok(value) => {
-                let value: String = value.into();
-                println!("{}", value);
-            }
-            Err(e) => {
-                self.error_handler.borrow_mut().report_error(e);
+    /// Interpret a list of statements,
+    /// This is the main entry point for the interpreter
+    pub fn interpret(&mut self, statements: Vec<Stmt>) {
+        for stmt in statements {
+            if let Err(e) = self.execute(&stmt) {
+                error!(self, e);
             }
         }
-        // let _ = self
-        //     .evaluate(expr)
-        //     .map_err(|e| self.error_handler.borrow_mut().report_error(e));
     }
 
-    pub fn evaluate(&mut self, expr: &Expr) -> Result<LiteralType, Error> {
+    /// Execute a statement
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), Error> {
+        stmt.accept(self)
+    }
+
+    /// Evaluate an expression
+    fn evaluate(&mut self, expr: &Expr) -> Result<LiteralType, Error> {
         expr.accept(self)
+    }
+}
+
+/// Statement Visitor will visit all types of statements
+/// ^ Lol, what a nothing statement
+impl crate::statements::Visitor for Interpreter {
+    fn visit_block(&mut self, block: &Block) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error> {
+        let _ = self.evaluate(&expression.expression)?;
+        Ok(())
+    }
+
+    fn visit_function(&mut self, function: &Function) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn visit_print(&mut self, print: &Print) -> Result<(), Error> {
+        let value: String = self.evaluate(&print.expression)?.into();
+        println!("{}", value);
+        Ok(())
+    }
+
+    fn visit_return(&mut self, return_stmt: &Return) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn visit_variable(&mut self, variable: &crate::statements::Variable) -> Result<(), Error> {
+        let value = if let Some(initializer) = &variable.initializer {
+            self.evaluate(initializer)?
+        } else {
+            LiteralType::Null
+        };
+        self.environment
+            .borrow_mut()
+            .define(variable.name.lexeme.clone(), value);
+        Ok(())
+    }
+
+    fn visit_while(&mut self, while_stmt: &While) -> Result<(), Error> {
+        todo!()
     }
 }
 
@@ -38,7 +96,11 @@ impl crate::expressions::Visitor for Interpreter {
     type Value = LiteralType;
 
     fn visit_assign(&mut self, assign: &Assign) -> Result<Self::Value, Error> {
-        todo!()
+        let value: LiteralType = self.evaluate(&assign.value)?;
+        self.environment
+            .borrow_mut()
+            .assign(assign.name.clone(), value.clone())?;
+        Ok(value)
     }
 
     fn visit_binary(&mut self, binary: &Binary) -> Result<Self::Value, Error> {
@@ -161,7 +223,14 @@ impl crate::expressions::Visitor for Interpreter {
         }
     }
 
-    fn visit_variable(&mut self, variable: &Variable) -> Result<Self::Value, Error> {
-        todo!()
+    // Return a stored variable in the environment
+    fn visit_variable(
+        &mut self,
+        variable: &crate::expressions::Variable,
+    ) -> Result<Self::Value, Error> {
+        self.environment
+            .borrow()
+            .get(variable.name.clone())
+            .map(|v| v.clone())
     }
 }

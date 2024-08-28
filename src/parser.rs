@@ -1,10 +1,12 @@
-use crate::error;
 use crate::error_handler::{Error, ErrorHandler};
 use crate::expressions::*;
+use crate::statements::*;
 use crate::token::{LiteralType, Token, TokenType};
+use crate::{error, expressions, statements};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// The parser struct handles incoming token streams and converts them into statements and expressions
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -20,22 +22,108 @@ impl Parser {
         }
     }
 
-    // Method called to parse the tokens
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(e) => {
-                self.error_handler.borrow_mut().report_error(e);
-                None
+    /// Method called to parse the tokens
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(e) => {
+                    error!(self, e);
+                    self.synchronize();
+                }
             }
         }
+
+        statements
     }
 
+    fn declaration(&mut self) -> Result<Stmt, Error> {
+        if self.match_token(&[TokenType::Var]) {
+            return self.variable_declaration();
+        }
+        self.statement()
+    }
+
+    /// Parse a statement
+    fn statement(&mut self) -> Result<Stmt, Error> {
+        if self.match_token(&[TokenType::Print]) {
+            return self.print_statement();
+        }
+
+        self.expression_statement()
+    }
+
+    /// Parse a variable declaration
+    fn variable_declaration(&mut self) -> Result<Stmt, Error> {
+        let name = self.consume(TokenType::Identifier, "Expected variable name.")?;
+        let initializer = if self.match_token(&[TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.check_statement_end()?;
+        Ok(Stmt::Variable(statements::Variable { name, initializer }))
+    }
+
+    /// Parse a print statement
+    fn print_statement(&mut self) -> Result<Stmt, Error> {
+        let expression = self.expression()?;
+        self.check_statement_end()?;
+        Ok(Stmt::Print(Print { expression }))
+    }
+
+    /// Parse an expression statement
+    fn expression_statement(&mut self) -> Result<Stmt, Error> {
+        let expression = self.expression()?;
+        self.check_statement_end()?;
+        Ok(Stmt::Expression(Expression { expression }))
+    }
+
+    // Check whether we are at the end of a statement. We accept both semi-colons and new lines
+    fn check_statement_end(&mut self) -> Result<(), Error> {
+        // Semi colon always ends a statement
+        if self.check(&TokenType::Semicolon) {
+            self.advance();
+            return Ok(());
+        }
+        // If we are at a new line, we can end the statement
+        let token: Token = self.peek();
+        if self.previous().line < token.line {
+            return Ok(());
+        }
+        Err(Error::ParseError(
+            token,
+            "Expected ';' or new line after expression.".to_string(),
+        ))
+    }
+
+    /// Parse an expression
     fn expression(&mut self) -> Result<Expr, Error> {
-        self.equality()
+        self.assignment()
     }
 
-    // Not equal and equal
+    fn assignment(&mut self) -> Result<Expr, Error> {
+        let expr = self.equality()?;
+
+        if self.match_token(&[TokenType::Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+            if let Expr::Variable(variable) = expr {
+                return Ok(Expr::Assign(Box::new(Assign {
+                    name: variable.name,
+                    value,
+                })));
+            }
+            return Err(Error::ParseError(
+                equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
+    }
+
+    /// Not equal and equal
     fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
 
@@ -52,7 +140,7 @@ impl Parser {
         Ok(expr)
     }
 
-    // Greater than, greater than or equal, less than, less than or equal
+    /// Greater than, greater than or equal, less than, less than or equal
     fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr = self.term()?;
 
@@ -74,7 +162,7 @@ impl Parser {
         Ok(expr)
     }
 
-    // Addition and subtraction
+    /// Addition and subtraction
     fn term(&mut self) -> Result<Expr, Error> {
         let mut expr = self.factor()?;
 
@@ -91,7 +179,7 @@ impl Parser {
         Ok(expr)
     }
 
-    // Multiplication and division
+    /// Multiplication and division
     fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr = self.unary()?;
 
@@ -108,7 +196,7 @@ impl Parser {
         Ok(expr)
     }
 
-    // Unary negation
+    /// Unary negation
     fn unary(&mut self) -> Result<Expr, Error> {
         if self.match_token(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.previous();
@@ -119,7 +207,7 @@ impl Parser {
         self.primary()
     }
 
-    // Primary expression
+    /// Primary expression
     fn primary(&mut self) -> Result<Expr, Error> {
         if self.match_token(&[TokenType::False]) {
             return Ok(Expr::Literal(Literal {
@@ -133,13 +221,19 @@ impl Parser {
         }
         if self.match_token(&[TokenType::Null]) {
             return Ok(Expr::Literal(Literal {
-                value: LiteralType::Empty,
+                value: LiteralType::Null,
             }));
         }
 
         if self.match_token(&[TokenType::Number, TokenType::String]) {
             return Ok(Expr::Literal(Literal {
                 value: self.previous().literal,
+            }));
+        }
+
+        if self.match_token(&[TokenType::Identifier]) {
+            return Ok(Expr::Variable(expressions::Variable {
+                name: self.previous(),
             }));
         }
 
@@ -152,8 +246,8 @@ impl Parser {
         Err(Error::ParseError(token, "Expected expression.".to_string()))
     }
 
-    // Since we have thrown an error, we need to synchronize the parser to the next
-    // statement boundary. We will catch the exception there and continue parsing
+    /// Since we have thrown an error, we need to synchronize the parser to the next
+    /// statement boundary. We will catch the exception there and continue parsing
     fn synchronize(&mut self) {
         self.advance();
         while !self.is_at_end() {
@@ -178,7 +272,7 @@ impl Parser {
         }
     }
 
-    // Check to see if the current token has any of the given types
+    /// Check to see if the current token has any of the given types
     fn match_token(&mut self, tokens: &[TokenType]) -> bool {
         for token in tokens {
             if self.check(token) {
@@ -189,8 +283,8 @@ impl Parser {
         false
     }
 
-    // returns true if the current token is of the given type. It never consumes the token,
-    // only looks at it
+    /// returns true if the current token is of the given type. It never consumes the token,
+    /// only looks at it
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
@@ -198,7 +292,7 @@ impl Parser {
         return &self.peek().token_type == token_type;
     }
 
-    // Advance the current token and return the previous token
+    /// Advance the current token and return the previous token
     fn advance(&mut self) -> Token {
         if !self.is_at_end() {
             self.current += 1;
@@ -206,7 +300,7 @@ impl Parser {
         self.previous()
     }
 
-    // Consume a token if it is the expected token, if not we throw an error
+    /// Consume a token if it is the expected token, if not we throw an error
     fn consume(&mut self, token_type: TokenType, message: &str) -> Result<Token, Error> {
         if self.check(&token_type) {
             return Ok(self.advance());
@@ -215,32 +309,18 @@ impl Parser {
         return Err(Error::ParseError(self.peek(), message.to_string()));
     }
 
-    // Are we at the end of the list of tokens
+    /// Are we at the end of the list of tokens
     fn is_at_end(&self) -> bool {
         self.peek().token_type == TokenType::Eof
     }
 
-    // Get the next token we haven't consumed
+    /// Get the next token we haven't consumed
     fn peek(&self) -> Token {
         self.tokens[self.current].clone()
     }
 
-    // Get the most recently consumed token
+    /// Get the most recently consumed token
     fn previous(&self) -> Token {
         self.tokens[self.current - 1].clone()
     }
 }
-
-// impl crate::expressions::Visitor for Parser {
-//     type Value = u32;
-//
-//     fn visit_assign(&mut self, assign: &Assign) -> Result<Self::Value, InterpreterError> {
-//         let value = self.expression();
-//         match assign.value {
-//             Expr::Variable(var) => {
-//                 self.environment.assign_at(var.name.lexeme.clone(), value.clone(), var.name.line)
-//             },
-//             _ => Err(InterpreterError::new(assign.name.line, "Invalid assignment target."))
-//         }
-//     }
-// }

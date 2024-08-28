@@ -5,7 +5,7 @@ use crate::token::Token;
 pub trait Visitor {
     fn visit_block(&mut self, block: &Block) -> Result<(), Error>;
     // fn visit_class(&mut self, class: &Class) -> Result<(), Error>;
-    fn visit_expression(&mut self, expression: &ExpressionStatement) -> Result<(), Error>;
+    fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error>;
     fn visit_function(&mut self, function: &Function) -> Result<(), Error>;
     fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error>;
     fn visit_print(&mut self, print: &Print) -> Result<(), Error>;
@@ -14,10 +14,11 @@ pub trait Visitor {
     fn visit_while(&mut self, while_stmt: &While) -> Result<(), Error>;
 }
 
+#[derive(Debug)]
 pub enum Stmt {
-    Block(Block),
+    Block(Box<Block>),
     // Class(Class),
-    Expression(ExpressionStatement),
+    Expression(Expression),
     Function(Function),
     If(Box<If>),
     Print(Print),
@@ -43,55 +44,64 @@ impl Stmt {
 }
 
 // Block statement
+#[derive(Debug)]
 pub struct Block {
-    statements: Vec<Stmt>,
+    pub statements: Vec<Stmt>,
 }
 
 // // Class statement
+// #[derive(Debug)]
 // pub struct Class {
-//     name: Token,
-//     superclass: Option<Variable>,
-//     methods: Vec<Function>,
+//     pub name: Token,
+//     pub superclass: Option<Variable>,
+//     pub methods: Vec<Function>,
 // }
 
 // Expression statement
-pub struct ExpressionStatement {
-    expression: Expr,
+#[derive(Debug)]
+pub struct Expression {
+    pub expression: Expr,
 }
 
 // Function statement
+#[derive(Debug)]
 pub struct Function {
-    name: Token,
-    params: Vec<Token>,
-    body: Vec<Stmt>,
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Vec<Stmt>,
 }
 
 // If statement
+#[derive(Debug)]
 pub struct If {
-    condition: Expr,
-    then_branch: Stmt,
-    else_branch: Option<Stmt>,
+    pub condition: Expr,
+    pub then_branch: Stmt,
+    pub else_branch: Option<Stmt>,
 }
 
 // Print statement
+#[derive(Debug)]
 pub struct Print {
-    expression: Expr,
+    pub expression: Expr,
 }
 
 // Return statement
+#[derive(Debug)]
 pub struct Return {
-    keyword: Token,
-    value: Option<Expr>,
+    pub keyword: Token,
+    pub value: Option<Expr>,
 }
 
 // Variable statement
+#[derive(Debug)]
 pub struct Variable {
-    name: Token,
-    initializer: Option<Expr>,
+    pub name: Token,
+    pub initializer: Option<Expr>,
 }
 
 // While statement
+#[derive(Debug)]
 pub struct While {
-    condition: Expr,
-    body: Stmt,
+    pub condition: Expr,
+    pub body: Stmt,
 }

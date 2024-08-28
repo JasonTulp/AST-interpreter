@@ -23,19 +23,6 @@ impl ErrorHandler {
         }
     }
 
-    pub fn error(&mut self, token: &Token, message: &str) {
-        if token.token_type == TokenType::Eof {
-            self.report(token.line, " at end", message);
-        } else {
-            self.report(token.line, &format!(" at '{}'", token.lexeme), message);
-        }
-    }
-
-    pub fn report(&mut self, line: u32, location: &str, message: &str) {
-        eprintln!("[line {}] Error{}: {}", line, location, message);
-        self.had_error = true;
-    }
-
     pub fn report_error(&mut self, error: Error) {
         match error {
             Error::SyntaxError(line, message) => {
@@ -78,21 +65,10 @@ impl ErrorHandler {
     }
 }
 
-// Macro to simplify error reporting from within structs
-#[macro_export]
-macro_rules! report_err {
-    ($self:expr, $line:expr, $context:expr, $message:expr) => {
-        $self
-            .error_handler
-            .borrow_mut()
-            .report($line, $context, $message);
-    };
-}
-
 // Macro to simplify error handling from within structs
 #[macro_export]
 macro_rules! error {
-    ($self:expr, $token:expr, $message:expr) => {
-        $self.error_handler.borrow_mut().error($token, $message);
+    ($self:expr, $error:expr) => {
+        $self.error_handler.borrow_mut().report_error($error)
     };
 }

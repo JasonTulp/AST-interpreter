@@ -23,7 +23,7 @@ pub enum LiteralType {
     String(String),
     Number(f64),
     Bool(bool),
-    Empty,
+    Null,
 }
 
 impl LiteralType {
@@ -31,8 +31,8 @@ impl LiteralType {
     // This follows Ruby's rule where false and null are falsey and everything else truthy
     pub fn is_truthy(&self) -> bool {
         match self {
-            LiteralType::Bool(b) => *b,
-            LiteralType::Empty => false,
+            Self::Bool(b) => *b,
+            Self::Null => false,
             _ => true,
         }
     }
@@ -63,7 +63,7 @@ impl TryInto<bool> for LiteralType {
 impl Into<String> for LiteralType {
     fn into(self) -> String {
         match self {
-            Self::Empty => "null".to_string(),
+            Self::Null => "null".to_string(),
             Self::Number(n) => n.to_string(),
             Self::Bool(b) => b.to_string(),
             Self::String(s) => s,

@@ -1,3 +1,4 @@
+use crate::error;
 use crate::error_handler::{Error, ErrorHandler};
 use crate::token::{LiteralType, Token, TokenType};
 use std::cell::RefCell;
@@ -36,7 +37,7 @@ impl Scanner {
         self.tokens.push(Token::new(
             TokenType::Eof,
             String::default(),
-            LiteralType::Empty,
+            LiteralType::Null,
             self.line,
         ))
     }
@@ -124,13 +125,10 @@ impl Scanner {
             f if self.is_digit(f) => self.number(),
             f if self.is_alpha(f) => self.identifier(),
 
-            _ => self
-                .error_handler
-                .borrow_mut()
-                .report_error(Error::SyntaxError(
-                    self.line,
-                    "Unexpected character.".to_string(),
-                )),
+            _ => error!(
+                self,
+                Error::SyntaxError(self.line, "Unexpected character.".to_string())
+            ),
         }
     }
 
@@ -162,7 +160,7 @@ impl Scanner {
         let text: String = self.range_to_string(self.start, self.current);
         let literal = match literal {
             Some(l) => l,
-            None => LiteralType::Empty,
+            None => LiteralType::Null,
         };
         self.tokens
             .push(Token::new(token_type, text, literal, self.line));
@@ -209,12 +207,10 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.error_handler
-                .borrow_mut()
-                .report_error(Error::SyntaxError(
-                    self.line,
-                    "Unterminated string.".to_string(),
-                ));
+            error!(
+                self,
+                Error::SyntaxError(self.line, "Unterminated string.".to_string())
+            );
             return;
         }
 
