@@ -18,7 +18,7 @@ pub trait Visitor {
     fn visit_variable(&mut self, variable: &Variable) -> Result<Self::Value, Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Assign(Box<Assign>),
     Binary(Box<Binary>),
@@ -54,14 +54,14 @@ impl Expr {
 }
 
 // Variable assignment
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Assign {
     pub name: Token,
     pub value: Expr,
 }
 
 // Binary expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Binary {
     pub left: Expr,
     pub operator: Token,
@@ -69,7 +69,7 @@ pub struct Binary {
 }
 
 // Call Expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Call {
     pub callee: Expr,
     pub paren: Token,
@@ -77,26 +77,26 @@ pub struct Call {
 }
 
 // Get Expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Get {
     pub object: Expr,
     pub name: Token,
 }
 
 // Grouping expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grouping {
     pub expression: Expr,
 }
 
 // Literal expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Literal {
     pub value: LiteralType,
 }
 
 // Logical expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Logical {
     pub left: Expr,
     pub operator: Token,
@@ -104,7 +104,7 @@ pub struct Logical {
 }
 
 // Set Expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Set {
     pub object: Expr,
     pub name: Token,
@@ -112,20 +112,20 @@ pub struct Set {
 }
 
 // Super Expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Super {
     pub keyword: Token,
     pub method: Token,
 }
 
 // This Expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct This {
     pub keyword: Token,
 }
 
 // Unary expression
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Unary {
     pub operator: Token,
     pub right: Expr,

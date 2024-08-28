@@ -158,12 +158,12 @@ impl crate::expressions::Visitor for Interpreter {
                 let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 Ok(LiteralType::Bool(left_num <= right_num))
             }
-            TokenType::Minus => {
+            TokenType::Minus | TokenType::MinusEqual | TokenType::MinusMinus => {
                 let left_num: f64 = left.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 Ok(LiteralType::Number(left_num - right_num))
             }
-            TokenType::Slash => {
+            TokenType::Slash | TokenType::SlashEqual => {
                 let left_num: f64 = left.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 if right_num == 0.0 {
@@ -171,27 +171,29 @@ impl crate::expressions::Visitor for Interpreter {
                 }
                 Ok(LiteralType::Number(left_num / right_num))
             }
-            TokenType::Star => {
+            TokenType::Star | TokenType::StarEqual => {
                 let left_num: f64 = left.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 Ok(LiteralType::Number(left_num * right_num))
             }
-            TokenType::Plus => match (left.clone(), right.clone()) {
-                (LiteralType::Number(left_num), LiteralType::Number(right_num)) => {
-                    Ok(LiteralType::Number(left_num + right_num))
+            TokenType::Plus | TokenType::PlusEqual | TokenType::PlusPlus => {
+                match (left.clone(), right.clone()) {
+                    (LiteralType::Number(left_num), LiteralType::Number(right_num)) => {
+                        Ok(LiteralType::Number(left_num + right_num))
+                    }
+                    (LiteralType::String(left_str), _) => {
+                        let right_str: String = right.into();
+                        Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
+                    }
+                    (_, LiteralType::String(right_str)) => {
+                        let left_str: String = left.into();
+                        Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
+                    }
+                    _ => {
+                        return Err(Error::RuntimeError(line, "Invalid Operands.".to_string()));
+                    }
                 }
-                (LiteralType::String(left_str), _) => {
-                    let right_str: String = right.into();
-                    Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
-                }
-                (_, LiteralType::String(right_str)) => {
-                    let left_str: String = left.into();
-                    Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
-                }
-                _ => {
-                    return Err(Error::RuntimeError(line, "Invalid Operands.".to_string()));
-                }
-            },
+            }
             TokenType::Modulo => {
                 let left_num: f64 = left.try_into().map_err(|e| Error::RuntimeError(line, e))?;
                 let right_num: f64 = right.try_into().map_err(|e| Error::RuntimeError(line, e))?;

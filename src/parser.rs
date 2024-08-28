@@ -223,11 +223,11 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, Error> {
-        let expr = self.plus_equal()?;
+        let expr = self.operate_assign()?;
 
         if self.match_token(&[TokenType::Equal]) {
             let equals = self.previous();
-            let value = self.plus_equal()?;
+            let value = self.operate_assign()?;
             if let Expr::Variable(variable) = expr {
                 return Ok(Expr::Assign(Box::new(Assign {
                     name: variable.name,
@@ -242,22 +242,23 @@ impl Parser {
         Ok(expr)
     }
 
-    fn plus_equal(&mut self) -> Result<Expr, Error> {
-        let expr = self.minus_equal()?;
+    /// Handles +=, -=, *=, /= shortcuts.
+    /// Note, these token types are interpreted as +, -, *, / in the interpreter
+    fn operate_assign(&mut self) -> Result<Expr, Error> {
+        let expr = self.increment_decrement()?;
 
-        if self.match_token(&[TokenType::PlusEqual]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let plus = Token {
-                    token_type: TokenType::Plus,
-                    lexeme: "+".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
+        if self.match_token(&[
+            TokenType::PlusEqual,
+            TokenType::MinusEqual,
+            TokenType::StarEqual,
+            TokenType::SlashEqual,
+        ]) {
+            let operator = self.previous();
+            if let Expr::Variable(variable) = expr.clone() {
                 let right = self.expression()?;
                 let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: plus,
+                    left: expr,
+                    operator,
                     right,
                 }));
                 return Ok(Expr::Assign(Box::new(Assign {
@@ -266,157 +267,26 @@ impl Parser {
                 })));
             }
             return Err(Error::ParseError(
-                plus_equals,
+                operator,
                 "Invalid assignment target.".to_string(),
             ));
         }
         Ok(expr)
     }
 
-    fn minus_equal(&mut self) -> Result<Expr, Error> {
-        let expr = self.star_equal()?;
-
-        if self.match_token(&[TokenType::MinusEqual]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let minus = Token {
-                    token_type: TokenType::Minus,
-                    lexeme: "-".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
-                let right = self.expression()?;
-                let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: minus,
-                    right,
-                }));
-                return Ok(Expr::Assign(Box::new(Assign {
-                    name: variable.name.clone(),
-                    value,
-                })));
-            }
-            return Err(Error::ParseError(
-                plus_equals,
-                "Invalid assignment target.".to_string(),
-            ));
-        }
-        Ok(expr)
-    }
-
-    fn star_equal(&mut self) -> Result<Expr, Error> {
-        let expr = self.slash_equal()?;
-
-        if self.match_token(&[TokenType::StarEqual]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let star = Token {
-                    token_type: TokenType::Star,
-                    lexeme: "*".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
-                let right = self.expression()?;
-                let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: star,
-                    right,
-                }));
-                return Ok(Expr::Assign(Box::new(Assign {
-                    name: variable.name.clone(),
-                    value,
-                })));
-            }
-            return Err(Error::ParseError(
-                plus_equals,
-                "Invalid assignment target.".to_string(),
-            ));
-        }
-        Ok(expr)
-    }
-
-    fn slash_equal(&mut self) -> Result<Expr, Error> {
-        let expr = self.plus_plus()?;
-
-        if self.match_token(&[TokenType::SlashEqual]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let slash = Token {
-                    token_type: TokenType::Slash,
-                    lexeme: "/".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
-                let right = self.expression()?;
-                let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: slash,
-                    right,
-                }));
-                return Ok(Expr::Assign(Box::new(Assign {
-                    name: variable.name.clone(),
-                    value,
-                })));
-            }
-            return Err(Error::ParseError(
-                plus_equals,
-                "Invalid assignment target.".to_string(),
-            ));
-        }
-        Ok(expr)
-    }
-
-    fn plus_plus(&mut self) -> Result<Expr, Error> {
-        let expr = self.minus_minus()?;
-
-        if self.match_token(&[TokenType::PlusPlus]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let plus = Token {
-                    token_type: TokenType::Plus,
-                    lexeme: "+".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
-                let right = Expr::Literal(Literal {
-                    value: LiteralType::Number(1.0),
-                });
-                let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: plus,
-                    right,
-                }));
-                return Ok(Expr::Assign(Box::new(Assign {
-                    name: variable.name.clone(),
-                    value,
-                })));
-            }
-            return Err(Error::ParseError(
-                plus_equals,
-                "Invalid assignment target.".to_string(),
-            ));
-        }
-        Ok(expr)
-    }
-
-    fn minus_minus(&mut self) -> Result<Expr, Error> {
+    /// Handles ++ and -- operators
+    fn increment_decrement(&mut self) -> Result<Expr, Error> {
         let expr = self.or()?;
 
-        if self.match_token(&[TokenType::MinusMinus]) {
-            let plus_equals = self.previous();
-            if let Expr::Variable(variable) = expr {
-                let minus = Token {
-                    token_type: TokenType::Minus,
-                    lexeme: "-".to_string(),
-                    literal: LiteralType::Null,
-                    line: self.peek().line,
-                };
+        if self.match_token(&[TokenType::MinusMinus, TokenType::PlusPlus]) {
+            let operator = self.previous();
+            if let Expr::Variable(variable) = expr.clone() {
                 let right = Expr::Literal(Literal {
                     value: LiteralType::Number(1.0),
                 });
                 let value = Expr::Binary(Box::new(Binary {
-                    left: Expr::Variable(variable.clone()),
-                    operator: minus,
+                    left: expr,
+                    operator,
                     right,
                 }));
                 return Ok(Expr::Assign(Box::new(Assign {
@@ -425,7 +295,7 @@ impl Parser {
                 })));
             }
             return Err(Error::ParseError(
-                plus_equals,
+                operator,
                 "Invalid assignment target.".to_string(),
             ));
         }
