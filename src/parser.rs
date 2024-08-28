@@ -149,7 +149,7 @@ impl Parser {
             return Ok(Expr::Grouping(Box::new(Grouping { expression: expr })));
         }
         let token = self.peek();
-        Err(Error::SyntaxError(token, "Expect expression.".to_string()))
+        Err(Error::ParseError(token, "Expected expression.".to_string()))
     }
 
     // Since we have thrown an error, we need to synchronize the parser to the next
@@ -212,7 +212,7 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        return Err(Error::SyntaxError(self.peek(), message.to_string()));
+        return Err(Error::ParseError(self.peek(), message.to_string()));
     }
 
     // Are we at the end of the list of tokens

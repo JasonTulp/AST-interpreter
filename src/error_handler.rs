@@ -1,7 +1,8 @@
 use crate::token::{Token, TokenType};
+use colored::Colorize;
 
 pub enum Error {
-    SyntaxError(Token, String),
+    SyntaxError(u32, String),
     ParseError(Token, String),
     /// Error type for runtime errors (line, message)
     RuntimeError(u32, String),
@@ -36,30 +37,44 @@ impl ErrorHandler {
     }
 
     pub fn report_error(&mut self, error: Error) {
-        eprintln!("[ ERROR ] Uh oh...");
         match error {
-            Error::SyntaxError(token, message) => {
+            Error::SyntaxError(line, message) => {
                 self.had_error = true;
-                eprintln!("[line {}] Syntax Error: {}", token.line, message);
+                eprintln!(
+                    "[line {}] {} {}",
+                    line,
+                    "Syntax Error:".red().italic(),
+                    message.red()
+                );
             }
             Error::ParseError(token, message) => {
                 self.had_error = true;
-                eprintln!("[line {}] Parse Error: {}", token.line, message)
+                eprintln!(
+                    "[line {}] {} {}",
+                    token.get_line(),
+                    "Parse Error:".red().italic(),
+                    message.red()
+                )
             }
             Error::RuntimeError(line, message) => {
                 self.had_runtime_error = true;
-                eprintln!("[line {}] Runtime Error: {}", line, message)
+                eprintln!(
+                    "[line {}] {} {}",
+                    line,
+                    "Runtime Error:".red().italic(),
+                    message.red()
+                )
             }
             Error::Return => {
                 self.had_error = true;
-                eprintln!("Return error")
+                eprintln!("{}", "Return error".red())
             }
             Error::Unknown => {
                 self.had_error = true;
-                eprintln!("An unknown error occurred. Sorry :(")
+                eprintln!("{}", "An unknown error occurred. Sorry :(".red())
             }
         }
-        eprintln!();
+        eprintln!("{}", "(╯°□°)╯︵ ɹoɹɹƎ".red().bold());
     }
 }
 

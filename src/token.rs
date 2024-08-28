@@ -8,6 +8,16 @@ pub struct Token {
     pub line: u32,
 }
 
+impl Token {
+    pub fn get_line(&self) -> u32 {
+        if self.token_type == TokenType::Eof {
+            self.line.saturating_sub(1)
+        } else {
+            self.line
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralType {
     String(String),
@@ -34,7 +44,7 @@ impl TryInto<f64> for LiteralType {
     fn try_into(self) -> Result<f64, String> {
         match self {
             Self::Number(n) => Ok(n),
-            _ => Err("Cannot convert to f64".to_string()),
+            _ => Err("Cannot convert to decimal".to_string()),
         }
     }
 }

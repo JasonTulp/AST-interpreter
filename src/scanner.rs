@@ -1,4 +1,4 @@
-use crate::error_handler::ErrorHandler;
+use crate::error_handler::{Error, ErrorHandler};
 use crate::token::{LiteralType, Token, TokenType};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -46,7 +46,7 @@ impl Scanner {
         self.tokens
             .clone()
             .into_iter()
-            .for_each(|t| println!("-- {}", t.to_string()))
+            .for_each(|t| println!("{} -- {}", t.line.to_string(), t.to_string()))
     }
 
     // Check if we are at the end of the source
@@ -127,7 +127,10 @@ impl Scanner {
             _ => self
                 .error_handler
                 .borrow_mut()
-                .report(self.line, "", "Unexpected character."),
+                .report_error(Error::SyntaxError(
+                    self.line,
+                    "Unexpected character.".to_string(),
+                )),
         }
     }
 
@@ -208,7 +211,11 @@ impl Scanner {
         if self.is_at_end() {
             self.error_handler
                 .borrow_mut()
-                .report(self.line, "", "Unterminated string.");
+                .report_error(Error::SyntaxError(
+                    self.line,
+                    "Unterminated string.".to_string(),
+                ));
+            return;
         }
 
         // To advance past the closing "
