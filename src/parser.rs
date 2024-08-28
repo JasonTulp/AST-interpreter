@@ -50,6 +50,11 @@ impl Parser {
         if self.match_token(&[TokenType::Print]) {
             return self.print_statement();
         }
+        if self.match_token(&[TokenType::LeftBrace]) {
+            return Ok(Stmt::Block(Box::new(Block {
+                statements: self.block()?,
+            })));
+        }
 
         self.expression_statement()
     }
@@ -71,6 +76,18 @@ impl Parser {
         let expression = self.expression()?;
         self.check_statement_end()?;
         Ok(Stmt::Print(Print { expression }))
+    }
+
+    // Return a list of statements between curly braces.
+    // Note, this returns a Vec<Stmt> instead of a Block as we will reuse this code for
+    // function bodies
+    fn block(&mut self) -> Result<Vec<Stmt>, Error> {
+        let mut statements = Vec::new();
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+        self.consume(TokenType::RightBrace, "Expected '}' after block.")?;
+        Ok(statements)
     }
 
     /// Parse an expression statement

@@ -19,7 +19,7 @@ use std::{io, process};
 
 // Start the REPL and handle incoming prompts
 pub fn run_prompt() {
-    let environment = Rc::new(RefCell::new(Environment::new()));
+    let environment = Rc::new(RefCell::new(Environment::new(None)));
     loop {
         print!("==> ");
         let mut line = String::new();
@@ -31,7 +31,7 @@ pub fn run_prompt() {
 
 // Load and run a file, reading the entire contents into a buffer
 pub fn run_file(path: &str) -> io::Result<()> {
-    let environment = Rc::new(RefCell::new(Environment::new()));
+    let environment = Rc::new(RefCell::new(Environment::new(None)));
     println!("Running JASN in file mode: {}", path);
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();

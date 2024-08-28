@@ -43,13 +43,32 @@ impl Interpreter {
     fn evaluate(&mut self, expr: &Expr) -> Result<LiteralType, Error> {
         expr.accept(self)
     }
+
+    // Execute a block of statements, throwing an error if one occurs
+    fn execute_block(&mut self, statements: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) {
+        let previous = self.environment.clone();
+        self.environment = environment;
+        for stmt in statements {
+            if let Err(e) = self.execute(stmt) {
+                // Throw the error without exiting as we want to return to the previous environment
+                error!(self, e);
+            }
+        }
+        self.environment = previous;
+    }
 }
 
 /// Statement Visitor will visit all types of statements
 /// ^ Lol, what a nothing statement
 impl crate::statements::Visitor for Interpreter {
     fn visit_block(&mut self, block: &Block) -> Result<(), Error> {
-        todo!()
+        self.execute_block(
+            &block.statements,
+            Rc::new(RefCell::new(Environment::new(Some(
+                self.environment.clone(),
+            )))),
+        );
+        Ok(())
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error> {
@@ -228,9 +247,6 @@ impl crate::expressions::Visitor for Interpreter {
         &mut self,
         variable: &crate::expressions::Variable,
     ) -> Result<Self::Value, Error> {
-        self.environment
-            .borrow()
-            .get(variable.name.clone())
-            .map(|v| v.clone())
+        self.environment.borrow().get(variable.name.clone())
     }
 }

@@ -1,0 +1,15 @@
+var a = 12;
+var b = 24;
+
+{
+    var a = 10;
+    {
+        print "A is smaller: " + a;
+    }
+    {
+        var b = 1234;
+        print "B is smaller: " + b;
+    }
+}
+
+print a + b;
