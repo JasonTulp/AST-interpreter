@@ -38,7 +38,7 @@ impl Parser {
         statements
     }
 
-    /// STATEMENTS
+    /// ================================  STATEMENTS
 
     /// Parse a declaration
     fn declaration(&mut self) -> Result<Stmt, Error> {
@@ -197,7 +197,7 @@ impl Parser {
         Ok(Stmt::Expression(Expression { expression }))
     }
 
-    // Check whether we are at the end of a statement. We accept both semi-colons and new lines
+    /// Check whether we are at the end of a statement. We accept both semi-colons and new lines
     fn check_statement_end(&mut self) -> Result<(), Error> {
         // Semi colon always ends a statement
         if self.check(&TokenType::Semicolon) {
@@ -215,7 +215,7 @@ impl Parser {
         ))
     }
 
-    /// EXPRESSIONS
+    /// ================================  EXPRESSIONS
 
     /// Parse an expression
     fn expression(&mut self) -> Result<Expr, Error> {
@@ -431,11 +431,67 @@ impl Parser {
             return Ok(Expr::Unary(Box::new(Unary { operator, right })));
         }
 
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.index_array()?;
+
+        loop {
+            if self.match_token(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
+        let mut arguments = Vec::with_capacity(255);
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if arguments.len() > 255 {
+                    return Err(Error::ParseError(
+                        self.peek(),
+                        "Cannot have more than 255 arguments.".to_string(),
+                    ));
+                }
+                arguments.push(self.expression()?);
+                if !self.match_token(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        let paren = self.consume(TokenType::RightParen, "Expected ')' after call arguments.")?;
+        Ok(Expr::Call(Box::new(Call {
+            callee,
+            paren,
+            arguments,
+        })))
+    }
+
+    fn index_array(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.primary()?;
+
+        while self.match_token(&[TokenType::LeftSquare]) {
+            let index = self.expression()?;
+            self.consume(TokenType::RightSquare, "Expected ']' after index.")?;
+            expr = Expr::Index(Box::new(Index {
+                object: expr,
+                index,
+            }));
+        }
+
+        Ok(expr)
     }
 
     /// Primary expression
     fn primary(&mut self) -> Result<Expr, Error> {
+        if self.match_token(&[TokenType::LeftSquare]) {
+            return self.array();
+        }
         if self.match_token(&[TokenType::False]) {
             return Ok(Expr::Literal(Literal {
                 value: LiteralType::Bool(false),
@@ -471,6 +527,21 @@ impl Parser {
         }
         let token = self.peek();
         Err(Error::ParseError(token, "Expected expression.".to_string()))
+    }
+
+    fn array(&mut self) -> Result<Expr, Error> {
+        let mut elements = Vec::new();
+        if !self.check(&TokenType::RightSquare) {
+            loop {
+                elements.push(self.expression()?);
+                if !self.match_token(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(TokenType::RightSquare, "Expected ']' after array elements.")?;
+        Ok(Expr::Array(Box::new(Array { values: elements })))
     }
 
     /// Since we have thrown an error, we need to synchronize the parser to the next

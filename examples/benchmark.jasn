@@ -1,0 +1,10 @@
+// Benchmark a simple loop
+
+var time = clock();
+for (var a = 1; a < 100000; a++) {
+    print a;
+}
+
+print "Time: " + (clock() - time);
+
+// Record time is 2.19  seconds

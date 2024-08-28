@@ -1,4 +1,4 @@
-use crate::error_handler::Error;
+use crate::callable::Callable;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -23,6 +23,8 @@ pub enum LiteralType {
     String(String),
     Number(f64),
     Bool(bool),
+    Array(Vec<LiteralType>),
+    Callable(Callable),
     Null,
 }
 
@@ -65,8 +67,28 @@ impl Into<String> for LiteralType {
         match self {
             Self::Null => "null".to_string(),
             Self::Number(n) => n.to_string(),
-            Self::Bool(b) => b.to_string(),
+            Self::Bool(b) => {
+                if b {
+                    "yeah".to_string()
+                } else {
+                    "nah".to_string()
+                }
+            }
             Self::String(s) => s,
+            Self::Callable(_) => "callable".to_string(),
+            // Self::Array(_) => "array".to_string(),
+            Self::Array(val) => {
+                let mut array = String::from("[");
+                for (i, v) in val.iter().enumerate() {
+                    let s: String = (*v).clone().into();
+                    array.push_str(&s);
+                    if i != val.len() - 1 {
+                        array.push_str(", ");
+                    }
+                }
+                array.push_str("]");
+                array
+            }
         }
     }
 }
@@ -94,6 +116,8 @@ pub enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftSquare,
+    RightSquare,
     Comma,
     Dot,
     Semicolon,

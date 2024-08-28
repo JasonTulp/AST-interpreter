@@ -1,16 +1,19 @@
 use crate::error_handler::Error;
+use crate::native_functions::*;
 use crate::token::{LiteralType, Token};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+pub type EnvRef = Rc<RefCell<Environment>>;
+
 pub struct Environment {
-    enclosing: Option<Rc<RefCell<Environment>>>,
+    enclosing: Option<EnvRef>,
     values: HashMap<String, LiteralType>,
 }
 
 impl Environment {
-    pub fn new(enclosing_env: Option<Rc<RefCell<Environment>>>) -> Self {
+    pub fn new(enclosing_env: Option<EnvRef>) -> Self {
         Self {
             enclosing: enclosing_env,
             values: HashMap::new(),

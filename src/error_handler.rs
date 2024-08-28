@@ -1,6 +1,7 @@
 use crate::token::{Token, TokenType};
 use colored::Colorize;
 
+#[derive(Debug)]
 pub enum Error {
     SyntaxError(u32, String),
     ParseError(Token, String),

@@ -65,6 +65,8 @@ impl Scanner {
             b')' => self.add_token(TokenType::RightParen, None),
             b'{' => self.add_token(TokenType::LeftBrace, None),
             b'}' => self.add_token(TokenType::RightBrace, None),
+            b'[' => self.add_token(TokenType::LeftSquare, None),
+            b']' => self.add_token(TokenType::RightSquare, None),
             b',' => self.add_token(TokenType::Comma, None),
             b'.' => self.add_token(TokenType::Dot, None),
             b';' => self.add_token(TokenType::Semicolon, None),
@@ -145,6 +147,9 @@ impl Scanner {
 
             // Handle strings
             b'"' => self.string(),
+
+            // // Handle Arrays
+            // b'[' => self.array(),
 
             // Numbers
             f if self.is_digit(f) => self.number(),
@@ -284,7 +289,9 @@ impl Scanner {
             "class" => TokenType::Class,
             "else" => TokenType::Else,
             "false" => TokenType::False,
+            "nah" => TokenType::False,
             "true" => TokenType::True,
+            "yeah" => TokenType::True,
             "funk" => TokenType::Funk,
             "for" => TokenType::For,
             "if" => TokenType::If,

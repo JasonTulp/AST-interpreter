@@ -9,6 +9,8 @@ pub trait Visitor {
     fn visit_call(&mut self, call: &Call) -> Result<Self::Value, Error>;
     fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Error>;
     fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Error>;
+    fn visit_array(&mut self, array: &Array) -> Result<Self::Value, Error>;
+    fn visit_index(&mut self, index: &Index) -> Result<Self::Value, Error>;
     fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, Error>;
     fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, Error>;
     fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error>;
@@ -25,6 +27,8 @@ pub enum Expr {
     Call(Box<Call>),
     Get(Box<Get>),
     Grouping(Box<Grouping>),
+    Array(Box<Array>),
+    Index(Box<Index>),
     Literal(Literal),
     Logical(Box<Logical>),
     Set(Box<Set>),
@@ -42,6 +46,8 @@ impl Expr {
             Expr::Call(call) => visitor.visit_call(call),
             Expr::Get(get) => visitor.visit_get(get),
             Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
+            Expr::Array(array) => visitor.visit_array(array),
+            Expr::Index(index) => visitor.visit_index(index),
             Expr::Literal(literal) => visitor.visit_literal(literal),
             Expr::Logical(logical) => visitor.visit_logical(logical),
             Expr::Set(set) => visitor.visit_set(set),
@@ -87,6 +93,19 @@ pub struct Get {
 #[derive(Debug, Clone)]
 pub struct Grouping {
     pub expression: Expr,
+}
+
+// Array Expression
+#[derive(Debug, Clone)]
+pub struct Array {
+    pub values: Vec<Expr>,
+}
+
+// Index Expression
+#[derive(Debug, Clone)]
+pub struct Index {
+    pub object: Expr,
+    pub index: Expr,
 }
 
 // Literal expression

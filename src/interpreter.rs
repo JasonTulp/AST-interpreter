@@ -1,25 +1,27 @@
-use crate::environment::Environment;
+use crate::callable::{Callable, NativeFunction};
+use crate::environment::{EnvRef, Environment};
 use crate::error;
 use crate::error_handler::{Error, ErrorHandler};
 use crate::expressions::*;
+use crate::native_functions::*;
 use crate::statements::*;
 use crate::token::{LiteralType, Token, TokenType};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Interpreter {
-    // Environment stores and retrieves variables
-    environment: Rc<RefCell<Environment>>,
+    // The fixed global environment
+    // global: EnvRef,
+    // The current environment we are in based on the current scope
+    environment: EnvRef,
     error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Interpreter {
-    pub fn new(
-        error_handler: Rc<RefCell<ErrorHandler>>,
-        environment: Rc<RefCell<Environment>>,
-    ) -> Self {
+    pub fn new(error_handler: Rc<RefCell<ErrorHandler>>, environment: EnvRef) -> Self {
         Self {
-            environment,
+            // global: environment.clone(),
+            environment: environment.clone(),
             error_handler,
         }
     }
@@ -45,7 +47,7 @@ impl Interpreter {
     }
 
     // Execute a block of statements, throwing an error if one occurs
-    fn execute_block(&mut self, statements: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) {
+    fn execute_block(&mut self, statements: &Vec<Stmt>, environment: EnvRef) {
         let previous = self.environment.clone();
         self.environment = environment;
         for stmt in statements {
@@ -209,7 +211,31 @@ impl crate::expressions::Visitor for Interpreter {
     }
 
     fn visit_call(&mut self, call: &Call) -> Result<Self::Value, Error> {
-        todo!()
+        let callee = self.evaluate(&call.callee)?;
+        let mut arguments = Vec::new();
+        for argument in &call.arguments {
+            arguments.push(self.evaluate(argument)?);
+        }
+        let function = match callee {
+            LiteralType::Callable(callable) => callable,
+            _ => Err(Error::RuntimeError(
+                call.paren.line,
+                "Can only call functions and classes.".to_string(),
+            ))?,
+        };
+
+        if arguments.len() as u8 != function.arity() {
+            return Err(Error::RuntimeError(
+                call.paren.line,
+                format!(
+                    "Expected {} arguments but found {}.",
+                    function.arity(),
+                    arguments.len()
+                ),
+            ));
+        }
+
+        function.call(self, arguments)
     }
 
     fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Error> {
@@ -218,6 +244,43 @@ impl crate::expressions::Visitor for Interpreter {
 
     fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Error> {
         self.evaluate(&grouping.expression)
+    }
+
+    fn visit_array(&mut self, array: &Array) -> Result<Self::Value, Error> {
+        let mut values = Vec::new();
+        for value in &array.values {
+            values.push(self.evaluate(value)?);
+        }
+        Ok(LiteralType::Array(values))
+    }
+
+    fn visit_index(&mut self, index: &Index) -> Result<Self::Value, Error> {
+        let array_value = self.evaluate(&index.object)?;
+        let index_value = self.evaluate(&index.index)?;
+
+        if let LiteralType::Array(elements) = array_value {
+            if let LiteralType::Number(n) = index_value {
+                let idx = n as usize;
+                if idx < elements.len() {
+                    return Ok(elements[idx].clone());
+                } else {
+                    return Err(Error::RuntimeError(
+                        2,
+                        "Array index out of bounds.".to_string(),
+                    ));
+                }
+            } else {
+                return Err(Error::RuntimeError(
+                    2,
+                    "Array index must be a number.".to_string(),
+                ));
+            }
+        }
+
+        Err(Error::RuntimeError(
+            3,
+            "Attempted to index a non-array value.".to_string(),
+        ))
     }
 
     fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, Error> {
