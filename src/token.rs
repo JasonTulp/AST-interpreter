@@ -62,25 +62,25 @@ impl TryInto<bool> for LiteralType {
     }
 }
 
-impl Into<String> for LiteralType {
-    fn into(self) -> String {
+impl ToString for LiteralType {
+    fn to_string(&self) -> String {
         match self {
             Self::Null => "null".to_string(),
             Self::Number(n) => n.to_string(),
             Self::Bool(b) => {
-                if b {
+                if *b {
                     "yeah".to_string()
                 } else {
                     "nah".to_string()
                 }
             }
-            Self::String(s) => s,
+            Self::String(s) => s.clone(),
             Self::Callable(c) => c.to_string(),
             // Self::Array(_) => "array".to_string(),
             Self::Array(val) => {
                 let mut array = String::from("[");
                 for (i, v) in val.iter().enumerate() {
-                    let s: String = (*v).clone().into();
+                    let s: String = (*v).clone().to_string();
                     array.push_str(&s);
                     if i != val.len() - 1 {
                         array.push_str(", ");
@@ -101,11 +101,6 @@ impl Token {
             literal,
             line,
         }
-    }
-
-    pub fn to_string(self) -> String {
-        let lit: String = self.literal.into();
-        format!("{:?} {:?} {:?}", self.token_type, self.lexeme, lit)
     }
 }
 

@@ -99,7 +99,7 @@ impl crate::statements::Visitor for Interpreter {
     }
 
     fn visit_print(&mut self, print: &Print) -> Result<(), Error> {
-        let value: String = self.evaluate(&print.expression)?.into();
+        let value: String = self.evaluate(&print.expression)?.to_string();
         println!("{}", value);
         Ok(())
     }
@@ -191,11 +191,11 @@ impl crate::expressions::Visitor for Interpreter {
                         Ok(LiteralType::Number(left_num + right_num))
                     }
                     (LiteralType::String(left_str), _) => {
-                        let right_str: String = right.into();
+                        let right_str: String = right.to_string();
                         Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
                     }
                     (_, LiteralType::String(right_str)) => {
-                        let left_str: String = left.into();
+                        let left_str: String = left.to_string();
                         Ok(LiteralType::String(format!("{}{}", left_str, right_str)))
                     }
                     _ => {
