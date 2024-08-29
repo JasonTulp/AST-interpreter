@@ -42,14 +42,6 @@ impl Scanner {
         ))
     }
 
-    // Debug function to print the stored tokens
-    pub fn print_tokens(&self) {
-        self.tokens
-            .clone()
-            .into_iter()
-            .for_each(|t| println!("{} -- {}", t.line.to_string(), t.to_string()))
-    }
-
     // Check if we are at the end of the source
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len() as u32

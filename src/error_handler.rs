@@ -1,13 +1,13 @@
-use crate::token::{Token, TokenType};
+use crate::token::{LiteralType, Token, TokenType};
 use colored::Colorize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     SyntaxError(u32, String),
     ParseError(Token, String),
     /// Error type for runtime errors (line, message)
     RuntimeError(u32, String),
-    Return,
+    Return(LiteralType),
     Unknown,
 }
 
@@ -53,9 +53,9 @@ impl ErrorHandler {
                     message.red()
                 )
             }
-            Error::Return => {
-                self.had_error = true;
-                eprintln!("{}", "Return error".red())
+            Error::Return(literal) => {
+                // No need to throw an error
+                return;
             }
             Error::Unknown => {
                 self.had_error = true;

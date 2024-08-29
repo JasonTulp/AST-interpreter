@@ -1,0 +1,31 @@
+var number = random() * 100;
+var guess = -100;
+
+
+
+funk main() {
+    print "Guess a number between 0 and 100";
+    guess = input();
+    while (!withinRange(guess, number)) {
+        if (guess < number) {
+            print "Too low...";
+        } else {
+            print "Too high...";
+        }
+        guess = input();
+    }
+
+    print "Nice! you're a champion";
+    print "Although technically the number was: " + number;
+    print "But I haven't added rounding yet...\n";
+}
+
+funk withinRange(guess, number) {
+    var difference = guess - number;
+    if (difference < 1 and difference > -1) {
+        return true;
+    }
+    return false;
+}
+
+main();

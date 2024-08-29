@@ -63,7 +63,6 @@ fn run(source: Vec<u8>, environment: EnvRef) {
     // Scan the input text and convert to a list of tokens
     let mut scanner = Scanner::new(source, Rc::clone(&error_handler));
     scanner.scan_tokens();
-    // scanner.print_tokens();
     // We don't want to continue if there was an error scanning the tokens
     if error_handler.borrow().had_error {
         return;

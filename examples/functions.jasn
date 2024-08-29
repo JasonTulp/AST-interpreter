@@ -1,0 +1,19 @@
+
+funk format(a) {
+    var str = "Your number is: " + a;
+    return str;
+}
+
+funk loop_until(terminator, increment) {
+    print "Starting loop...";
+    for (var i = 0; i <= terminator; i+=increment) {
+        print format(i);
+    }
+}
+
+//print "How long would you like to loop?";
+//var terminator = input();
+//print "How much should we increment per loop?";
+//loop_until(terminator, input());
+
+loop_until(100, 1);

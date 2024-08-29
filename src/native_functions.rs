@@ -13,6 +13,7 @@ impl NativeFunctions {
         Self::define_len(environment.clone());
         Self::define_print(environment.clone());
         Self::define_sleep(environment.clone());
+        Self::define_random(environment.clone());
     }
 
     /// The clock function will return the time in seconds since the UNIX Epoch
@@ -38,7 +39,11 @@ impl NativeFunctions {
             function: |_, _| {
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input).unwrap();
-                Ok(LiteralType::String(input.trim().to_string()))
+                // Attempt to convert to a number, otherwise return a string
+                return match input.trim().parse() {
+                    Ok(num) => Ok(LiteralType::Number(num)),
+                    Err(_) => Ok(LiteralType::String(input)),
+                };
             },
         }));
         environment.borrow_mut().define("input".to_string(), input);
@@ -84,5 +89,15 @@ impl NativeFunctions {
             },
         }));
         environment.borrow_mut().define("sleep".to_string(), sleep);
+    }
+
+    fn define_random(environment: EnvRef) {
+        let random = LiteralType::Callable(Callable::NativeFunction(NativeFunction {
+            arity: 0,
+            function: |_env, _args| Ok(LiteralType::Number(rand::random::<f64>())),
+        }));
+        environment
+            .borrow_mut()
+            .define("random".to_string(), random);
     }
 }

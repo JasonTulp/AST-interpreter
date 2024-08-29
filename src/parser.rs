@@ -62,6 +62,9 @@ impl Parser {
         if self.match_token(&[TokenType::Print]) {
             return self.print_statement();
         }
+        if self.match_token(&[TokenType::Return]) {
+            return self.return_statement();
+        }
         if self.match_token(&[TokenType::While]) {
             return self.while_statement();
         }
@@ -206,6 +209,16 @@ impl Parser {
         let expression = self.expression()?;
         self.check_statement_end()?;
         Ok(Stmt::Print(Print { expression }))
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, Error> {
+        let keyword = self.previous();
+        let value = match self.check(&TokenType::Semicolon) {
+            true => None,
+            false => Some(self.expression()?),
+        };
+        self.check_statement_end()?;
+        Ok(Stmt::Return(Return { keyword, value }))
     }
 
     /// Parse a while statement

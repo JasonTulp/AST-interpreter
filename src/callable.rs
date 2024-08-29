@@ -48,8 +48,16 @@ impl Callable {
                         argument.clone(),
                     );
                 }
-                interpreter.execute_block(&function.declaration.body, environment);
-                Ok(LiteralType::Null)
+                match interpreter.execute_block(&function.declaration.body, environment) {
+                    Ok(_) => Ok(LiteralType::Null),
+                    Err(error) => {
+                        if let Error::Return(value) = error {
+                            Ok(value)
+                        } else {
+                            Err(error)
+                        }
+                    }
+                }
             }
         }
     }

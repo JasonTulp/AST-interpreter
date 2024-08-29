@@ -47,16 +47,23 @@ impl Interpreter {
     }
 
     // Execute a block of statements, throwing an error if one occurs
-    pub(crate) fn execute_block(&mut self, statements: &Vec<Stmt>, environment: EnvRef) {
+    pub(crate) fn execute_block(
+        &mut self,
+        statements: &Vec<Stmt>,
+        environment: EnvRef,
+    ) -> Result<(), Error> {
         let previous = self.environment.clone();
         self.environment = environment;
         for stmt in statements {
             if let Err(e) = self.execute(stmt) {
                 // Throw the error without exiting as we want to return to the previous environment
-                error!(self, e);
+                self.environment = previous;
+                error!(self, e.clone());
+                return Err(e);
             }
         }
         self.environment = previous;
+        Ok(())
     }
 }
 
@@ -69,8 +76,7 @@ impl crate::statements::Visitor for Interpreter {
             Rc::new(RefCell::new(Environment::new(Some(
                 self.environment.clone(),
             )))),
-        );
-        Ok(())
+        )
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error> {
@@ -105,7 +111,11 @@ impl crate::statements::Visitor for Interpreter {
     }
 
     fn visit_return(&mut self, return_stmt: &Return) -> Result<(), Error> {
-        todo!()
+        let value = match return_stmt.value.as_ref() {
+            Some(v) => self.evaluate(v)?,
+            None => LiteralType::Null,
+        };
+        Err(Error::Return(value))
     }
 
     fn visit_variable(&mut self, variable: &crate::statements::Variable) -> Result<(), Error> {
