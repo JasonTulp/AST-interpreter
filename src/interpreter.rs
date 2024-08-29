@@ -87,6 +87,7 @@ impl crate::statements::Visitor for Interpreter {
     fn visit_function(&mut self, function: &Function) -> Result<(), Error> {
         let jasn_function = JasnFunction {
             declaration: Box::new(function.clone()),
+            closure: self.environment.clone(),
         };
         self.environment.borrow_mut().define(
             function.name.lexeme.clone(),

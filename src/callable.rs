@@ -24,6 +24,7 @@ pub struct NativeFunction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct JasnFunction {
     pub declaration: Box<statements::Function>,
+    pub closure: Rc<RefCell<Environment>>,
 }
 
 impl Callable {
@@ -39,9 +40,7 @@ impl Callable {
             Callable::Function(function) => {
                 // Create a new environment whenever the function is called and pass the arguments
                 // into that environment
-                let mut environment = Rc::new(RefCell::new(Environment::new(Some(
-                    interpreter.global.clone(),
-                ))));
+                let mut environment = function.closure.clone();
                 for (i, argument) in arguments.iter().enumerate() {
                     environment.borrow_mut().define(
                         function.declaration.params[i].lexeme.to_string(),
