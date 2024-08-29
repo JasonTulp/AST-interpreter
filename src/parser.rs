@@ -45,6 +45,9 @@ impl Parser {
         if self.match_token(&[TokenType::Var]) {
             return self.variable_declaration();
         }
+        if self.match_token(&[TokenType::Funk]) {
+            return self.function("function");
+        }
         self.statement()
     }
 
@@ -82,6 +85,42 @@ impl Parser {
         };
         self.check_statement_end()?;
         Ok(Stmt::Variable(statements::Variable { name, initializer }))
+    }
+
+    /// Parse a function declaration
+    fn function(&mut self, kind: &str) -> Result<Stmt, Error> {
+        let name = self.consume(TokenType::Identifier, &format!("Expected {} name.", kind))?;
+        self.consume(
+            TokenType::LeftParen,
+            &format!("Expected '(' after {} name.", kind),
+        )?;
+        let mut parameters = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if parameters.len() > 255 {
+                    return Err(Error::ParseError(
+                        self.peek(),
+                        "Cannot have more than 255 parameters.".to_string(),
+                    ));
+                }
+                parameters.push(self.consume(TokenType::Identifier, "Expected parameter name.")?);
+                if !self.match_token(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expected ')' after parameters.")?;
+        self.consume(
+            TokenType::LeftBrace,
+            &format!("Expected '{{' before {} body.", kind),
+        )?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function(statements::Function {
+            name,
+            params: parameters,
+            body,
+        }))
     }
 
     /// Parse an if statement

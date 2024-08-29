@@ -1,17 +1,17 @@
-use crate::callable::{Callable, NativeFunction};
+use crate::callable::{Callable, JasnFunction, NativeFunction};
 use crate::environment::{EnvRef, Environment};
-use crate::error;
 use crate::error_handler::{Error, ErrorHandler};
 use crate::expressions::*;
 use crate::native_functions::*;
 use crate::statements::*;
 use crate::token::{LiteralType, Token, TokenType};
+use crate::{callable, error};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Interpreter {
     // The fixed global environment
-    // global: EnvRef,
+    pub global: EnvRef,
     // The current environment we are in based on the current scope
     environment: EnvRef,
     error_handler: Rc<RefCell<ErrorHandler>>,
@@ -20,7 +20,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new(error_handler: Rc<RefCell<ErrorHandler>>, environment: EnvRef) -> Self {
         Self {
-            // global: environment.clone(),
+            global: environment.clone(),
             environment: environment.clone(),
             error_handler,
         }
@@ -47,7 +47,7 @@ impl Interpreter {
     }
 
     // Execute a block of statements, throwing an error if one occurs
-    fn execute_block(&mut self, statements: &Vec<Stmt>, environment: EnvRef) {
+    pub(crate) fn execute_block(&mut self, statements: &Vec<Stmt>, environment: EnvRef) {
         let previous = self.environment.clone();
         self.environment = environment;
         for stmt in statements {
@@ -79,7 +79,14 @@ impl crate::statements::Visitor for Interpreter {
     }
 
     fn visit_function(&mut self, function: &Function) -> Result<(), Error> {
-        todo!()
+        let jasn_function = JasnFunction {
+            declaration: Box::new(function.clone()),
+        };
+        self.environment.borrow_mut().define(
+            function.name.lexeme.clone(),
+            LiteralType::Callable(Callable::Function(jasn_function)),
+        );
+        Ok(())
     }
 
     fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error> {

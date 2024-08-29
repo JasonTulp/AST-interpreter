@@ -56,6 +56,7 @@ pub fn run_file(path: &str) -> io::Result<()> {
 
 // Actually run the interpreter
 fn run(source: Vec<u8>, environment: EnvRef) {
+    // let start_time = std::time::Instant::now();
     // Create a re-usable error handler
     let error_handler = Rc::new(RefCell::new(ErrorHandler::new()));
 
@@ -67,14 +68,19 @@ fn run(source: Vec<u8>, environment: EnvRef) {
     if error_handler.borrow().had_error {
         return;
     }
+    // let scan_time = std::time::Instant::now();
+    // println!("Scanning took: {:?}", scan_time.duration_since(start_time));
 
     // Parse the token stream
     let mut parser = Parser::new(scanner.tokens, Rc::clone(&error_handler));
     let statements = parser.parse();
-    // print!("{:?}", statements);
+    // let parse_time = std::time::Instant::now();
+    // println!("Parsing took: {:?}", parse_time.duration_since(scan_time));
 
     // Execute the parsed statements
     let mut interpreter =
         interpreter::Interpreter::new(Rc::clone(&error_handler), Rc::clone(&environment));
     interpreter.interpret(statements);
+    // let end_time = std::time::Instant::now();
+    // println!("Execution took: {:?}", end_time.duration_since(parse_time));
 }

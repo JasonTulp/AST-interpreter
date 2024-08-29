@@ -14,7 +14,7 @@ pub trait Visitor {
     fn visit_while(&mut self, while_stmt: &While) -> Result<(), Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
     Block(Box<Block>),
     // Class(Class),
@@ -44,7 +44,7 @@ impl Stmt {
 }
 
 // Block statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub statements: Vec<Stmt>,
 }
@@ -58,13 +58,13 @@ pub struct Block {
 // }
 
 // Expression statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expression {
     pub expression: Expr,
 }
 
 // Function statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Function {
     pub name: Token,
     pub params: Vec<Token>,
@@ -72,7 +72,7 @@ pub struct Function {
 }
 
 // If statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct If {
     pub condition: Expr,
     pub then_branch: Stmt,
@@ -80,27 +80,27 @@ pub struct If {
 }
 
 // Print statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Print {
     pub expression: Expr,
 }
 
 // Return statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Return {
     pub keyword: Token,
     pub value: Option<Expr>,
 }
 
 // Variable statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Variable {
     pub name: Token,
     pub initializer: Option<Expr>,
 }
 
 // While statement
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct While {
     pub condition: Expr,
     pub body: Stmt,

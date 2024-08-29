@@ -1,6 +1,6 @@
 use crate::callable::Callable;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -75,7 +75,7 @@ impl Into<String> for LiteralType {
                 }
             }
             Self::String(s) => s,
-            Self::Callable(_) => "callable".to_string(),
+            Self::Callable(c) => c.to_string(),
             // Self::Array(_) => "array".to_string(),
             Self::Array(val) => {
                 let mut array = String::from("[");
