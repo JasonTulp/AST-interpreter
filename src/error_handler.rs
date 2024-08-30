@@ -22,7 +22,16 @@ impl ErrorHandler {
 		Self { had_error: false, had_runtime_error: false }
 	}
 
+	pub fn reset(&mut self) {
+		self.had_error = false;
+		self.had_runtime_error = false;
+	}
+
 	pub fn report_error(&mut self, error: Error) {
+		// Only print this silly message on the first error in a block
+		if !self.had_error && !self.had_runtime_error {
+			eprintln!("{}", "(╯°□°)╯︵ ɹoɹɹƎ".red().bold());
+		}
 		match error {
 			Error::SyntaxError(line, message) => {
 				self.had_error = true;
@@ -42,6 +51,7 @@ impl ErrorHandler {
 				eprintln!("[line {}] {} {}", line, "Runtime Error:".red().italic(), message.red())
 			},
 			Error::ResolverError(token, message) => {
+				self.had_error = true;
 				eprintln!(
 					"[line {}] {} {}",
 					token.get_line(),
@@ -58,7 +68,6 @@ impl ErrorHandler {
 				eprintln!("{}", "An unknown error occurred. Sorry :(".red())
 			},
 		}
-		eprintln!("{}", "(╯°□°)╯︵ ɹoɹɹƎ".red().bold());
 	}
 }
 

@@ -1,0 +1,7 @@
+funk bad() {
+    var a = "hi";
+    var a = "Uh oh..";
+    print a;
+}
+
+bad();

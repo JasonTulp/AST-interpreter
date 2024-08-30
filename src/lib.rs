@@ -31,6 +31,7 @@ pub fn run_prompt() {
 		let _ = io::stdout().flush();
 		io::stdin().read_line(&mut line).unwrap();
 		run(line.as_bytes().to_vec(), &mut interpreter);
+		error_handler.borrow_mut().reset();
 	}
 }
 
@@ -84,9 +85,12 @@ fn run(source: Vec<u8>, interpreter: &mut Interpreter) {
 	// println!("Parsing took: {:?}", parse_time.duration_since(scan_time));
 
 	// Execute the parsed statements
-	let mut resolver = Resolver::new(interpreter);
-	resolver.resolve_block(&statements).unwrap();
+	let mut resolver = Resolver::new(interpreter, Rc::clone(&error_handler));
+	resolver.resolve_block(&statements);
 
+	if error_handler.borrow().had_error {
+		return;
+	}
 	interpreter.interpret(statements);
 	// let end_time = std::time::Instant::now();
 	// println!("Execution took: {:?}", end_time.duration_since(parse_time));

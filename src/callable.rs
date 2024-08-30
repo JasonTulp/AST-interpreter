@@ -4,6 +4,15 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
+/// FunctionType is an enum that represents the type of function that is being resolved
+#[derive(Copy, Clone, PartialEq)]
+pub enum FunctionType {
+	None,
+	Function,
+	// Initializer,
+	// Method,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Callable {
 	NativeFunction(NativeFunction),

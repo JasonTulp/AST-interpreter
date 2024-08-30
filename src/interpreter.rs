@@ -18,7 +18,7 @@ pub struct Interpreter {
 	environment: EnvRef,
 	locals: HashMap<Expr, u64>,
 	// The error handler
-	error_handler: Rc<RefCell<ErrorHandler>>,
+	pub error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Interpreter {

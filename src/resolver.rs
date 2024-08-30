@@ -1,5 +1,7 @@
 use crate::{
-	error_handler::Error,
+	callable::FunctionType,
+	error,
+	error_handler::{Error, ErrorHandler},
 	expressions,
 	expressions::*,
 	interpreter::Interpreter,
@@ -7,24 +9,36 @@ use crate::{
 	statements::*,
 	token::{LiteralType, Token},
 };
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub struct Resolver<'a> {
 	pub interpreter: &'a mut Interpreter,
 	scopes: Vec<HashMap<String, bool>>,
+	current_function: FunctionType,
+	// The error handler
+	pub error_handler: Rc<RefCell<ErrorHandler>>,
 }
 
 impl Resolver<'_> {
-	pub fn new(interpreter: &mut Interpreter) -> Resolver {
-		Resolver { interpreter, scopes: vec![] }
+	pub fn new(
+		interpreter: &mut Interpreter,
+		error_handler: Rc<RefCell<ErrorHandler>>,
+	) -> Resolver {
+		Resolver {
+			interpreter,
+			scopes: vec![],
+			current_function: FunctionType::None,
+			error_handler,
+		}
 	}
 
 	/// Resolve a block of statements
-	pub(crate) fn resolve_block(&mut self, statements: &Vec<Stmt>) -> Result<(), Error> {
+	pub(crate) fn resolve_block(&mut self, statements: &Vec<Stmt>) {
 		for statement in statements {
-			self.resolve_stmt(statement)?;
+			if let Err(e) = self.resolve_stmt(statement) {
+				error!(self, e);
+			}
 		}
-		Ok(())
 	}
 
 	/// Resolve an individual statement by calling the accept method
@@ -52,11 +66,20 @@ impl Resolver<'_> {
 	/// into two steps.
 	/// Declaration adds the variable to the inner most scope and shadows the outer one so we
 	/// know that it exists, but the false says it's not ready to use yet
-	fn declare(&mut self, name: &Token) {
+	fn declare(&mut self, name: &Token) -> Result<(), Error> {
 		match self.scopes.last_mut() {
-			None => return, // Empty scopes
-			Some(scope) => scope.insert(name.lexeme.to_owned(), false),
-		};
+			None => Ok(()), // Empty scopes
+			Some(scope) => {
+				if scope.contains_key(&name.lexeme) {
+					return Err(Error::ResolverError(
+						name.to_owned(),
+						"There's already a variable with this name in this scope.".to_string(),
+					))
+				}
+				scope.insert(name.lexeme.to_owned(), false);
+				Ok(())
+			},
+		}
 	}
 
 	/// This sets the variable in the same scope as above to true which shows that it is
@@ -80,14 +103,21 @@ impl Resolver<'_> {
 		Ok(())
 	}
 
-	fn resolve_function(&mut self, function: Function) -> Result<(), Error> {
+	fn resolve_function(
+		&mut self,
+		function: Function,
+		function_type: FunctionType,
+	) -> Result<(), Error> {
+		let enclosing_function = self.current_function;
+		self.current_function = function_type;
 		self.begin_scope();
-		function.params.iter().for_each(|param| {
-			self.declare(param);
+		for param in function.params.iter() {
+			self.declare(param)?;
 			self.define(param);
-		});
-		self.resolve_block(&function.body)?;
+		}
+		self.resolve_block(&function.body);
 		self.end_scope();
+		self.current_function = enclosing_function;
 		Ok(())
 	}
 }
@@ -95,7 +125,7 @@ impl Resolver<'_> {
 impl statements::Visitor for Resolver<'_> {
 	fn visit_block(&mut self, block: &Block) -> Result<(), Error> {
 		self.begin_scope();
-		self.resolve_block(&block.statements)?;
+		self.resolve_block(&block.statements);
 		self.end_scope();
 		Ok(())
 	}
@@ -106,9 +136,9 @@ impl statements::Visitor for Resolver<'_> {
 	}
 
 	fn visit_function(&mut self, function: &Function) -> Result<(), Error> {
-		self.declare(&function.name);
-        self.define(&function.name);
-		self.resolve_function(function.clone())?;
+		self.declare(&function.name)?;
+		self.define(&function.name);
+		self.resolve_function(function.clone(), FunctionType::Function)?;
 		Ok(())
 	}
 
@@ -127,6 +157,12 @@ impl statements::Visitor for Resolver<'_> {
 	}
 
 	fn visit_return(&mut self, return_stmt: &Return) -> Result<(), Error> {
+		if self.current_function == FunctionType::None {
+			return Err(Error::ResolverError(
+				return_stmt.keyword.to_owned(),
+				"Can't return from top-level code.".to_string(),
+			));
+		}
 		if let Some(value) = &return_stmt.value {
 			self.resolve_expr(value)?;
 		}
@@ -134,7 +170,7 @@ impl statements::Visitor for Resolver<'_> {
 	}
 
 	fn visit_variable(&mut self, variable: &statements::Variable) -> Result<(), Error> {
-		self.declare(&variable.name);
+		self.declare(&variable.name)?;
 		if let Some(initializer) = &variable.initializer {
 			self.resolve_expr(initializer)?;
 		}
