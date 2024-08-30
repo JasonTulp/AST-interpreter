@@ -195,7 +195,9 @@ impl expressions::Visitor for Resolver<'_> {
 	}
 
 	fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, Error> {
-		todo!()
+		self.resolve_expr(&logical.left)?;
+		self.resolve_expr(&logical.right)?;
+		Ok(LiteralType::Null)
 	}
 
 	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {

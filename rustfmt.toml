@@ -8,16 +8,16 @@ reorder_imports = true
 # Consistency
 newline_style = "Unix"
 # Format comments
- comment_width = 100 # nightly only
- wrap_comments = true # nightly only
+comment_width = 100 # nightly only
+wrap_comments = true # nightly only
 # Misc
 chain_width = 80
- spaces_around_ranges = false # nightly only
- binop_separator = "Back" # nightly only
- reorder_impl_items = false # nightly only
+spaces_around_ranges = false # nightly only
+binop_separator = "Back" # nightly only
+reorder_impl_items = false # nightly only
 match_arm_leading_pipes = "Preserve"
- match_arm_blocks = false # nightly only
+match_arm_blocks = false # nightly only
 match_block_trailing_comma = true
- trailing_comma = "Vertical" # nightly only
- trailing_semicolon = false # nightly only
+trailing_comma = "Vertical" # nightly only
+trailing_semicolon = false # nightly only
 use_field_init_shorthand = true
