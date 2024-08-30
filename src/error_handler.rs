@@ -7,6 +7,7 @@ pub enum Error {
     ParseError(Token, String),
     /// Error type for runtime errors (line, message)
     RuntimeError(u32, String),
+    ResolverError(Token, String),
     Return(LiteralType),
     Unknown,
 }
@@ -50,6 +51,14 @@ impl ErrorHandler {
                     "[line {}] {} {}",
                     line,
                     "Runtime Error:".red().italic(),
+                    message.red()
+                )
+            }
+            Error::ResolverError(token, message) => {
+                eprintln!(
+                    "[line {}] {} {}",
+                    token.get_line(),
+                    "Resolver Error:".red().italic(),
                     message.red()
                 )
             }

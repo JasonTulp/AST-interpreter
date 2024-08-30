@@ -1,0 +1,12 @@
+var a = "global";
+{
+  funk showA() {
+    print a;
+  }
+
+  showA();
+  var a = "block";
+  showA();
+}
+
+// should print global twice

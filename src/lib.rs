@@ -1,14 +1,3 @@
-mod callable;
-mod environment;
-mod error_handler;
-mod expressions;
-mod interpreter;
-mod native_functions;
-mod parser;
-mod scanner;
-mod statements;
-mod token;
-
 use crate::environment::{EnvRef, Environment};
 use crate::error_handler::ErrorHandler;
 use crate::native_functions::NativeFunctions;
@@ -20,6 +9,18 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::rc::Rc;
 use std::{io, process};
+
+mod callable;
+mod environment;
+mod error_handler;
+mod expressions;
+mod interpreter;
+mod native_functions;
+mod parser;
+mod resolver;
+mod scanner;
+mod statements;
+mod token;
 
 // Start the REPL and handle incoming prompts
 pub fn run_prompt() {
@@ -36,15 +37,19 @@ pub fn run_prompt() {
 
 // Load and run a file, reading the entire contents into a buffer
 pub fn run_file(path: &str) -> io::Result<()> {
-    // let ext = Path::new(path).extension();
-    // match ext {
-    //     Some(e) => {
-    //         if e != "jasn" {
-    //             return Err("Only '.jasn' file supported.".into());
-    //         }
-    //     }
-    //     None => return Err("Cannot identify file extension.".into()),
-    // }
+    let ext = Path::new(path).extension();
+    match ext {
+        Some(e) => {
+            if e != "jasn" {
+                println!("Invalid file extension. Please provide a .jasn file.");
+                return Ok(());
+            }
+        }
+        None => {
+            println!("Invalid file extension. Please provide a .jasn file.");
+            return Ok(());
+        }
+    }
     let environment = Rc::new(RefCell::new(Environment::new(None)));
     NativeFunctions::define_native_functions(environment.clone());
     let mut file = File::open(path)?;
