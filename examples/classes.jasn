@@ -1,0 +1,26 @@
+class Bagel {}
+var bagel = Bagel();
+print bagel; // Prints "Bagel instance".
+
+class TestClass {
+//    a = 1;
+    test() {
+        return "I'm just a test man, leave me alone";
+    }
+}
+var c = TestClass();
+print c;
+c.hi = 5;
+c.hi += 2;
+print c.hi;
+
+var d = c;
+c.hi += 2;
+print d.hi;
+print c.hi;
+
+print c.test();
+//print c.serveOn();
+//TestClass.serveOn.a = 1;
+
+//print TestClass.a; // Prints "DevonshireCream".

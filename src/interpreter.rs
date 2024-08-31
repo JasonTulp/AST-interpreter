@@ -1,6 +1,6 @@
 use crate::{
 	callable,
-	callable::{Callable, JasnFunction, NativeFunction},
+	callable::{Callable, JasnClass, JasnFunction, NativeFunction},
 	environment::{EnvRef, Environment},
 	error,
 	error_handler::{Error, ErrorHandler},
@@ -96,6 +96,28 @@ impl Interpreter {
 impl crate::statements::Visitor for Interpreter {
 	fn visit_block(&mut self, block: &Block) -> Result<(), Error> {
 		self.execute_block(&block.statements, Environment::new(Some(self.environment.clone())))
+	}
+
+	fn visit_class(&mut self, class: &Class) -> Result<(), Error> {
+		self.environment
+			.borrow_mut()
+			.define(class.name.lexeme.clone(), LiteralType::Null);
+
+		// Create the methods
+		let mut methods = HashMap::new();
+		for method in &class.methods {
+			let function = JasnFunction {
+				declaration: Box::new(method.clone()),
+				closure: self.environment.clone(),
+			};
+			methods.insert(method.name.lexeme.clone(), Callable::Function(function));
+		}
+
+		let jasn_class = JasnClass::new(class.name.lexeme.clone(), methods);
+		self.environment
+			.borrow_mut()
+			.assign(&class.name, LiteralType::Callable(Callable::Class(jasn_class)))?;
+		Ok(())
 	}
 
 	fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error> {
@@ -271,7 +293,42 @@ impl crate::expressions::Visitor for Interpreter {
 	}
 
 	fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Error> {
-		todo!()
+		let object = self.evaluate(&get.object)?;
+		if let LiteralType::Callable(callable) = object {
+			match callable {
+				Callable::Instance(instance) => {
+					let value = instance.borrow().get(&get.name)?;
+					return Ok(value);
+				},
+				_ => Err(Error::RuntimeError(
+					get.name.line,
+					"Only instances have properties.".to_string(),
+				)),
+			}
+		} else {
+			Err(Error::RuntimeError(
+				get.name.line,
+				"Only class instances have properties.".to_string(),
+			))
+		}
+	}
+
+	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {
+		let object = self.evaluate(&set.object)?;
+		match object {
+			LiteralType::Callable(callable) => match callable {
+				Callable::Instance(instance) => {
+					let value = self.evaluate(&set.value)?;
+					instance.borrow_mut().set(&set.name.lexeme, value.clone());
+					return Ok(value);
+				},
+				_ => Err(Error::RuntimeError(
+					set.name.line,
+					"Only instances have fields.".to_string(),
+				)),
+			},
+			_ => Err(Error::RuntimeError(set.name.line, "Only instances have fields.".to_string())),
+		}
 	}
 
 	fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Error> {
@@ -296,14 +353,37 @@ impl crate::expressions::Visitor for Interpreter {
 				if idx < elements.len() {
 					return Ok(elements[idx].clone());
 				} else {
-					return Err(Error::RuntimeError(2, "Array index out of bounds.".to_string()));
+					return Err(Error::RuntimeError(0, "Array index out of bounds.".to_string()));
 				}
 			} else {
-				return Err(Error::RuntimeError(2, "Array index must be a number.".to_string()));
+				return Err(Error::RuntimeError(0, "Array index must be a number.".to_string()));
 			}
 		}
 
-		Err(Error::RuntimeError(3, "Attempted to index a non-array value.".to_string()))
+		Err(Error::RuntimeError(0, "Attempted to index a non-array value.".to_string()))
+	}
+
+	// TODO, still doesn't properly assign the value in memory
+	fn visit_assign_index(&mut self, assign_index: &AssignIndex) -> Result<Self::Value, Error> {
+		let array_val = self.evaluate(&assign_index.object)?;
+		let index_val = self.evaluate(&assign_index.index)?;
+		let value_val = self.evaluate(&assign_index.value)?;
+
+		if let LiteralType::Array(mut elements) = array_val {
+			if let LiteralType::Number(n) = index_val {
+				let idx = n as usize;
+				if idx < elements.len() {
+					elements[idx] = value_val.clone();
+					return Ok(value_val);
+				} else {
+					return Err(Error::RuntimeError(0, "Array index out of bounds.".to_string()));
+				}
+			} else {
+				return Err(Error::RuntimeError(0, "Array index must be a number.".to_string()));
+			}
+		}
+
+		Err(Error::RuntimeError(0, "Attempted to index a non-array value.".to_string()))
 	}
 
 	fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, Error> {
@@ -324,10 +404,6 @@ impl crate::expressions::Visitor for Interpreter {
 		}
 
 		self.evaluate(&logical.right)
-	}
-
-	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {
-		todo!()
 	}
 
 	fn visit_super(&mut self, super_: &Super) -> Result<Self::Value, Error> {

@@ -10,12 +10,13 @@ pub trait Visitor {
 	fn visit_binary(&mut self, binary: &Binary) -> Result<Self::Value, Error>;
 	fn visit_call(&mut self, call: &Call) -> Result<Self::Value, Error>;
 	fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Error>;
+	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error>;
 	fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Error>;
 	fn visit_array(&mut self, array: &Array) -> Result<Self::Value, Error>;
 	fn visit_index(&mut self, index: &Index) -> Result<Self::Value, Error>;
+	fn visit_assign_index(&mut self, assign_index: &AssignIndex) -> Result<Self::Value, Error>;
 	fn visit_literal(&mut self, literal: &Literal) -> Result<Self::Value, Error>;
 	fn visit_logical(&mut self, logical: &Logical) -> Result<Self::Value, Error>;
-	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error>;
 	fn visit_super(&mut self, super_: &Super) -> Result<Self::Value, Error>;
 	fn visit_this(&mut self, this: &This) -> Result<Self::Value, Error>;
 	fn visit_unary(&mut self, unary: &Unary) -> Result<Self::Value, Error>;
@@ -28,12 +29,13 @@ pub enum Expr {
 	Binary(Box<Binary>),
 	Call(Box<Call>),
 	Get(Box<Get>),
+	Set(Box<Set>),
 	Grouping(Box<Grouping>),
 	Array(Box<Array>),
 	Index(Box<Index>),
+	AssignIndex(Box<AssignIndex>),
 	Literal(Literal),
 	Logical(Box<Logical>),
-	Set(Box<Set>),
 	Super(Super),
 	This(This),
 	Unary(Box<Unary>),
@@ -47,12 +49,13 @@ impl Expr {
 			Expr::Binary(binary) => visitor.visit_binary(binary),
 			Expr::Call(call) => visitor.visit_call(call),
 			Expr::Get(get) => visitor.visit_get(get),
+			Expr::Set(set) => visitor.visit_set(set),
 			Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
 			Expr::Array(array) => visitor.visit_array(array),
 			Expr::Index(index) => visitor.visit_index(index),
+			Expr::AssignIndex(assign_index) => visitor.visit_assign_index(assign_index),
 			Expr::Literal(literal) => visitor.visit_literal(literal),
 			Expr::Logical(logical) => visitor.visit_logical(logical),
-			Expr::Set(set) => visitor.visit_set(set),
 			Expr::Super(super_) => visitor.visit_super(super_),
 			Expr::This(this) => visitor.visit_this(this),
 			Expr::Unary(unary) => visitor.visit_unary(unary),
@@ -108,6 +111,14 @@ pub struct Array {
 pub struct Index {
 	pub object: Expr,
 	pub index: Expr,
+}
+
+// Variable assignment at index (For arrays)
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+pub struct AssignIndex {
+	pub object: Expr,
+	pub index: Expr,
+	pub value: Expr,
 }
 
 // Literal expression

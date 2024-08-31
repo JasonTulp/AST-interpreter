@@ -46,7 +46,10 @@ impl Parser {
 			return self.variable_declaration();
 		}
 		if self.match_token(&[TokenType::Funk]) {
-			return self.function("function");
+			return Ok(Stmt::Function(self.function("function")?));
+		}
+		if self.match_token(&[TokenType::Class]) {
+			return self.class_declaration();
 		}
 		self.statement()
 	}
@@ -86,7 +89,7 @@ impl Parser {
 	}
 
 	/// Parse a function declaration
-	fn function(&mut self, kind: &str) -> Result<Stmt, Error> {
+	fn function(&mut self, kind: &str) -> Result<Function, Error> {
 		let name = self.consume(TokenType::Identifier, &format!("Expected {} name.", kind))?;
 		self.consume(TokenType::LeftParen, &format!("Expected '(' after {} name.", kind))?;
 		let mut parameters = Vec::new();
@@ -108,7 +111,18 @@ impl Parser {
 		self.consume(TokenType::LeftBrace, &format!("Expected '{{' before {} body.", kind))?;
 		let body = self.block()?;
 
-		Ok(Stmt::Function(statements::Function { name, params: parameters, body }))
+		Ok(statements::Function { name, params: parameters, body })
+	}
+
+	fn class_declaration(&mut self) -> Result<Stmt, Error> {
+		let name = self.consume(TokenType::Identifier, "Expected class name.")?;
+		self.consume(TokenType::LeftBrace, "Expected '{' before class body.")?;
+		let mut methods = Vec::new();
+		while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+			methods.push(self.function("method")?);
+		}
+		self.consume(TokenType::RightBrace, "Expected '}' after class body.")?;
+		Ok(Stmt::Class(Class { name, methods }))
 	}
 
 	/// Parse an if statement
@@ -238,51 +252,69 @@ impl Parser {
 	}
 
 	fn assignment(&mut self) -> Result<Expr, Error> {
-		let expr = self.operate_assign()?;
-
-		if self.match_token(&[TokenType::Equal]) {
-			let equals = self.previous();
-			let value = self.operate_assign()?;
-			if let Expr::Variable(variable) = expr {
-				return Ok(Expr::Assign(Box::new(Assign { name: variable.name, value })));
-			}
-			return Err(Error::ParseError(equals, "Invalid assignment target.".to_string()));
-		}
-		Ok(expr)
-	}
-
-	/// Handles +=, -=, *=, /= shortcuts.
-	/// Note, these token types are interpreted as +, -, *, / in the interpreter
-	fn operate_assign(&mut self) -> Result<Expr, Error> {
-		let expr = self.increment_decrement()?;
+		let expr = self.or()?;
 
 		if self.match_token(&[
+			TokenType::Equal,
 			TokenType::PlusEqual,
 			TokenType::MinusEqual,
 			TokenType::StarEqual,
 			TokenType::SlashEqual,
+			TokenType::MinusMinus,
+			TokenType::PlusPlus,
 		]) {
 			let operator = self.previous();
-			if let Expr::Variable(variable) = expr.clone() {
-				let right = self.expression()?;
-				let value = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
-				return Ok(Expr::Assign(Box::new(Assign { name: variable.name.clone(), value })));
-			}
-			return Err(Error::ParseError(operator, "Invalid assignment target.".to_string()));
-		}
-		Ok(expr)
-	}
-
-	/// Handles ++ and -- operators
-	fn increment_decrement(&mut self) -> Result<Expr, Error> {
-		let expr = self.or()?;
-
-		if self.match_token(&[TokenType::MinusMinus, TokenType::PlusPlus]) {
-			let operator = self.previous();
-			if let Expr::Variable(variable) = expr.clone() {
+			let value = if operator.token_type == TokenType::Equal {
+				self.or()?
+			} else if operator.token_type == TokenType::MinusMinus ||
+				operator.token_type == TokenType::PlusPlus
+			{
+				// Value is ++ or --, so we will operate on 1
 				let right = Expr::Literal(Literal { value: LiteralType::Number(1.0) });
-				let value = Expr::Binary(Box::new(Binary { left: expr, operator, right }));
-				return Ok(Expr::Assign(Box::new(Assign { name: variable.name.clone(), value })));
+				Expr::Binary(Box::new(Binary {
+					left: expr.clone(),
+					operator: operator.clone(),
+					right,
+				}))
+			} else {
+				// Value is an operation as well as an assignment (+= 1 etc)
+				let right = self.or()?;
+				Expr::Binary(Box::new(Binary {
+					left: expr.clone(),
+					operator: operator.clone(),
+					right,
+				}))
+			};
+
+			// Check if we are assigning a variable or a property on an instance
+			if let Expr::Variable(variable) = expr.clone() {
+				return Ok(Expr::Assign(Box::new(Assign { name: variable.name, value })));
+			} else if let Expr::Get(assign) = &expr {
+				return Ok(Expr::Set(Box::new(Set {
+					object: assign.object.clone(),
+					name: assign.name.clone(),
+					value,
+				})));
+			} else if let Expr::Index(index) = &expr {
+				// return Ok(Expr::Set(Box::new(Set {
+				// 	object: Expr::Index(index.clone()),
+				// 	name: Token {
+				// 		token_type: TokenType::String,
+				// 		lexeme: "LEXEME".to_string(),
+				// 		literal: LiteralType::String("Idk".to_string()),
+				// 		line: operator.line,
+				// 	},
+				// 	value,
+				// })));
+				// return Ok(Expr::Set(Box::new(Set {
+				// 	object: index.object.clone(),
+				// 	name: index.index.clone(),
+				// 	value,
+				// })));
+				return Err(Error::ParseError(
+					operator,
+					"Ruh roh, Jason hasn't implemented Array assignment.".to_string(),
+				));
 			}
 			return Err(Error::ParseError(operator, "Invalid assignment target.".to_string()));
 		}
@@ -399,6 +431,10 @@ impl Parser {
 		loop {
 			if self.match_token(&[TokenType::LeftParen]) {
 				expr = self.finish_call(expr)?;
+			} else if self.match_token(&[TokenType::Dot]) {
+				let name =
+					self.consume(TokenType::Identifier, "Expected property name after '.'.")?;
+				expr = Expr::Get(Box::new(Get { object: expr, name }));
 			} else {
 				break;
 			}

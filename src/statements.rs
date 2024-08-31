@@ -2,7 +2,7 @@ use crate::{error_handler::Error, expressions::Expr, token::Token};
 
 pub trait Visitor {
 	fn visit_block(&mut self, block: &Block) -> Result<(), Error>;
-	// fn visit_class(&mut self, class: &Class) -> Result<(), Error>;
+	fn visit_class(&mut self, class: &Class) -> Result<(), Error>;
 	fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error>;
 	fn visit_function(&mut self, function: &Function) -> Result<(), Error>;
 	fn visit_if(&mut self, if_stmt: &If) -> Result<(), Error>;
@@ -15,7 +15,7 @@ pub trait Visitor {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
 	Block(Box<Block>),
-	// Class(Class),
+	Class(Class),
 	Expression(Expression),
 	Function(Function),
 	If(Box<If>),
@@ -29,7 +29,7 @@ impl Stmt {
 	pub fn accept<V: Visitor>(&self, visitor: &mut V) -> Result<(), Error> {
 		match self {
 			Stmt::Block(block) => visitor.visit_block(block),
-			// Stmt::Class(class) => visitor.visit_class(class),
+			Stmt::Class(class) => visitor.visit_class(class),
 			Stmt::Expression(expression) => visitor.visit_expression(expression),
 			Stmt::Function(function) => visitor.visit_function(function),
 			Stmt::If(if_stmt) => visitor.visit_if(if_stmt),
@@ -47,13 +47,13 @@ pub struct Block {
 	pub statements: Vec<Stmt>,
 }
 
-// // Class statement
-// #[derive(Debug)]
-// pub struct Class {
-//     pub name: Token,
-//     pub superclass: Option<Variable>,
-//     pub methods: Vec<Function>,
-// }
+// Class statement
+#[derive(Debug, PartialEq, Clone)]
+pub struct Class {
+	pub name: Token,
+	// pub superclass: Option<Variable>,
+	pub methods: Vec<Function>,
+}
 
 // Expression statement
 #[derive(Debug, PartialEq, Clone)]

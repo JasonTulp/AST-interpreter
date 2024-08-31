@@ -130,6 +130,18 @@ impl statements::Visitor for Resolver<'_> {
 		Ok(())
 	}
 
+	fn visit_class(&mut self, class: &Class) -> Result<(), Error> {
+		self.declare(&class.name)?;
+		self.define(&class.name);
+
+		for method in &class.methods {
+			let declaration = FunctionType::Method;
+			self.resolve_function(method.clone(), declaration)?;
+		}
+
+		Ok(())
+	}
+
 	fn visit_expression(&mut self, expression: &Expression) -> Result<(), Error> {
 		self.resolve_expr(&expression.expression)?;
 		Ok(())
@@ -207,7 +219,14 @@ impl expressions::Visitor for Resolver<'_> {
 	}
 
 	fn visit_get(&mut self, get: &Get) -> Result<Self::Value, Error> {
-		todo!();
+		self.resolve_expr(&get.object)?;
+		Ok(LiteralType::Null)
+	}
+
+	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {
+		self.resolve_expr(&set.object)?;
+		self.resolve_expr(&set.value)?;
+		Ok(LiteralType::Null)
 	}
 
 	fn visit_grouping(&mut self, grouping: &Grouping) -> Result<Self::Value, Error> {
@@ -221,8 +240,14 @@ impl expressions::Visitor for Resolver<'_> {
 	}
 
 	fn visit_index(&mut self, index: &Index) -> Result<Self::Value, Error> {
-		self.resolve_expr(&index.object)?;
+		// self.resolve_expr(&index.object)?;
 		self.resolve_expr(&index.index)?;
+		Ok(LiteralType::Null)
+	}
+
+	fn visit_assign_index(&mut self, assign_index: &AssignIndex) -> Result<Self::Value, Error> {
+		self.resolve_expr(&assign_index.index)?;
+		self.resolve_expr(&assign_index.value)?;
 		Ok(LiteralType::Null)
 	}
 
@@ -234,10 +259,6 @@ impl expressions::Visitor for Resolver<'_> {
 		self.resolve_expr(&logical.left)?;
 		self.resolve_expr(&logical.right)?;
 		Ok(LiteralType::Null)
-	}
-
-	fn visit_set(&mut self, set: &Set) -> Result<Self::Value, Error> {
-		todo!()
 	}
 
 	fn visit_super(&mut self, super_: &Super) -> Result<Self::Value, Error> {
